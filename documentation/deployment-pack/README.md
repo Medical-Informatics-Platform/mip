@@ -5,6 +5,7 @@ The installation prerequisites, hardware requirements and other considerations p
 - [Deployment Pack (PDF)](../legal-docs/MIP_Executive_Summary_V02.00_7960b8432e.pdf)
 - [Installation and License Agreement (PDF)](../legal-docs/MIP_Installation_and_License_Agreement_-_V02.10_210c5d6538.pdf)
 - [Installation Prerequisites and Installation Guide](./install-prerequisites.md)
+- [Minimal Worker Setup (Tailscale-only)](./minimal-setup.md)
 - [Ethics and Legal Requirements](./ethics-legal.md)
 - [FAQ](./faq.md)
 

@@ -3,14 +3,16 @@
 **Security posture:** If host firewall policy is strict, keep inbound closed and allow only the minimum required traffic on `tailscale0`.  
 ---
 
-## 0) Variables (set these)
-- `MASTER_TS` = the master VM's Tailscale IPv4 (e.g., `100.x.y.z`)
+## 0) Federation Variables (The federation administrator should provide these values)
 - `TS_AUTHKEY` = short-lived, **one-off** Tailscale auth key (ideally tagged)
+- `MASTER_TS` = the master VM's Tailscale IPv4 (e.g., `100.x.y.z`)
+- `MICROK8S_JOIN_TOKEN` = the token used to join the microk8s cluster, **one-off**.
 
-Example:
+Example of values that should be provided:
 ```bash
-export MASTER_TS="100.108.97.6"
 export TS_AUTHKEY="tskey-auth-REDACTED"
+export MASTER_TS="1.2.3.4"
+export MICROK8S_JOIN_TOKEN="microk8s-join-token-REDACTED"
 ```
 
 ---
@@ -115,7 +117,12 @@ Expected:
 ## 5) Join MicroK8s as a worker
 
 Run the join command provided securely by the master operator (short-lived / one-time):
-
 ```bash
-sudo microk8s join <MASTER_TS>:25000/<token>/<hash> --worker
+sudo microk8s join $MASTER_TS:25000/$MICROK8S_JOIN_TOKEN --worker
+```
+
+If you get the error `Joining cluster failed. Could not verify the identity of 1.2.3.4. Use '--sk`
+Please use the following command and notify the federation administrator:
+```bash
+sudo microk8s join $MASTER_TS:25000/$MICROK8S_JOIN_TOKEN --worker --skip-verify
 ```

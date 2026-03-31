@@ -73,6 +73,8 @@ platform-ui:
     context: services
   ingress:
     redirectRootTo: /home       # optional 302 redirect for the landing page
+    certManager:
+      createClusterIssuer: true # lets Helm create the ClusterIssuer when cert-manager is installed
     tlsSecretName: platform-ui-tls
 
 keycloak:
@@ -124,7 +126,7 @@ sudo adduser mipadmin microk8s
 
 As *mipadmin* user:
 ```
-microk8s enable dns helm3 ingress
+microk8s enable dns helm3 ingress cert-manager
 ```
 ```
 sudo mkdir -p /data/<MIP_INSTANCE_OR_FEDERATION_NAME>
@@ -188,6 +190,8 @@ For a more in-depth guide on deploying Exaflow, please refer to the documentatio
     -f /opt/mip-deployment/kubernetes/my-values.yaml \
     /opt/mip-deployment/kubernetes
   ```
+
+If `platform-ui.ingress.certManager.createClusterIssuer` is enabled, the chart will also create the configured `ClusterIssuer` once the cert-manager CRDs are present. Secrets such as database credentials and the Keycloak client secret are still expected to be created separately.
 
 # MicroK8s Automatic Recoverability
 

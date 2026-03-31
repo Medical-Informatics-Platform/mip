@@ -292,6 +292,7 @@ spec:
 
         - name: platform-backend
           image: {{ $platformBackend.image.repository }}:{{ $platformBackend.image.tag }}
+          imagePullPolicy: {{ default "IfNotPresent" $platformBackend.image.pullPolicy }}
           ports:
             - containerPort: 8080
             - containerPort: 8089

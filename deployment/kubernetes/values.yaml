@@ -1,6 +1,6 @@
 cluster:
   namespace: default
-  managed: true
+  managed: false
   storageClasses:
     local: k8s-local-storage
     managed: ceph-corbo-cephfs
@@ -9,7 +9,7 @@ network:
   link: proxied
   externalProtocol: https
   publicProtocol: https
-  publicHost: default
+  publicHost: mip.dt4h.athenarc.gr
 engines:
   exaflow:
     url: "http://exaflow-controller-service:5000"
@@ -30,8 +30,12 @@ platform-ui:
     nodePort: 30080
   ingress:
     enabled: true
-    className: nginx-public
+    className: public
     certManagerClusterIssuer: letsencrypt-public
+    certManager:
+      createClusterIssuer: true
+      acmeServer: https://acme-v02.api.letsencrypt.org/directory
+      accountKeySecretName: letsencrypt-public-account-key
     tlsSecretName: platform-ui-tls
     redirectRootTo: /home
   backend:
@@ -50,7 +54,8 @@ platform-ui:
 platform-backend:
   image:
     repository: hbpmip/platform-backend
-    tag: 9.1.1
+    tag: dt4h
+    pullPolicy: Always
   config:
     logLevel: INFO
     logLevelFramework: INFO
@@ -73,9 +78,9 @@ platformBackendDatabase:
 
 keycloak:
   enabled: true
-  host: iam.ebrains.eu
+  host: inb.bsc.es
   protocol: https
-  realm: MIP
-  clientId: mipfedqa
+  realm: datatools4heart
+  clientId: mip_datacatalogue
   sslRequired: external
   proxyAddressForwarding: true

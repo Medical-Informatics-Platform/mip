@@ -1,0 +1,23 @@
+{{- $namespace := include "mip.namespace" . -}}
+{{- $platformUi := index .Values "platform-ui" -}}
+{{- $ingress := default (dict) $platformUi.ingress -}}
+{{- $certManager := default (dict) $ingress.certManager -}}
+{{- $createClusterIssuer := default false $certManager.createClusterIssuer -}}
+{{- $issuerName := default "" $ingress.certManagerClusterIssuer -}}
+{{- $ingressClassName := default "nginx" $ingress.className -}}
+{{- if and $createClusterIssuer $issuerName (.Capabilities.APIVersions.Has "cert-manager.io/v1/ClusterIssuer") }}
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ $issuerName }}
+spec:
+  acme:
+    server: {{ default "https://acme-v02.api.letsencrypt.org/directory" $certManager.acmeServer | quote }}
+    privateKeySecretRef:
+      name: {{ default (printf "%s-account-key" $issuerName) $certManager.accountKeySecretName | quote }}
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: {{ $ingressClassName | quote }}
+{{- end }}

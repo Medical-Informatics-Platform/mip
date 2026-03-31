@@ -59,11 +59,11 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
+{{- if and (not .Values.cluster.managed) $platformUi.service.nodePort }}
+      nodePort: {{ $platformUi.service.nodePort }}
+{{- end }}
 {{- if not .Values.cluster.managed }}
   type: NodePort
-{{- if $platformUi.service.nodePort }}
-  nodePort: {{ $platformUi.service.nodePort }}
-{{- end }}
 {{- end }}
 {{- if and $ingressEnabled (not (empty $publicHost)) }}
 ---
@@ -77,13 +77,9 @@ metadata:
 {{- if $ingress.certManagerClusterIssuer }}
     cert-manager.io/cluster-issuer: {{ $ingress.certManagerClusterIssuer | quote }}
 {{- end }}
-    nginx.ingress.kubernetes.io/rewrite-target: "/"
 {{- $redirect := default "" $ingress.redirectRootTo -}}
 {{- if $redirect }}
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      if ($request_uri = "/") {
-        return 302 {{ $redirect }};
-      }
+    nginx.ingress.kubernetes.io/app-root: {{ $redirect | quote }}
 {{- end }}
 spec:
   ingressClassName: {{ default "nginx" $ingress.className | quote }}

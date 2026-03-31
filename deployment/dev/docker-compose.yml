@@ -138,6 +138,9 @@ services:
     restart: unless-stopped
 
   platform-backend:
+    build:
+      context: ../../../platform-backend
+      dockerfile: Dockerfile
     image: hbpmip/platform-backend:${PLATFORM_BACKEND}
     ports:
       - '8080:8080'
@@ -173,6 +176,9 @@ services:
     restart: unless-stopped
 
   platform_ui:
+    build:
+      context: ../../../platform-ui
+      dockerfile: Dockerfile
     image: hbpmip/platform-ui:${PLATFORM_UI}
     ports:
       - "80:80"

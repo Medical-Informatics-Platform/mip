@@ -1,15 +1,12 @@
-{{- $namespace := include "mip.namespace" . -}}
+{{- $namespace := default "default" .Release.Namespace -}}
 {{- $platformUi := index .Values "platform-ui" -}}
 {{- $platformBackend := index .Values "platform-backend" -}}
 {{- $ingress := default (dict) $platformUi.ingress -}}
 {{- $backendHost := default "" $platformUi.backend.host -}}
 {{- $backendPort := default 8080 $platformUi.backend.port -}}
 {{- $backendContext := default "services" $platformUi.backend.context -}}
-{{- $ingressEnabled := true -}}
-{{- if hasKey $ingress "enabled" -}}
-{{- $ingressEnabled = $ingress.enabled -}}
-{{- end -}}
-{{- $publicHost := default "" .Values.network.publicHost -}}
+{{- $ingressEnabled := default true $ingress.enabled -}}
+{{- $publicHost := default "" .Values.global.publicHost -}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -32,12 +29,6 @@ spec:
           ports:
             - containerPort: 80
           env:
-            - name: FRONTEND_VERSION
-              value: {{ default "" $platformUi.image.tag | quote }}
-            - name: BACKEND_VERSION
-              value: {{ default "" $platformBackend.image.tag | quote }}
-            - name: EXAFLOW_VERSION
-              value: {{ default "" .Values.engines.exaflow.image.tag | quote }}
             - name: MIP_VERSION
               value: {{ default "" .Values.mip.version | quote }}
 {{- if $backendHost }}
@@ -73,7 +64,6 @@ metadata:
   name: platform-ui-ingress
   namespace: {{ $namespace }}
   annotations:
-    kubernetes.io/ingress.class: {{ default "nginx" $ingress.className | quote }}
 {{- if $ingress.certManagerClusterIssuer }}
     cert-manager.io/cluster-issuer: {{ $ingress.certManagerClusterIssuer | quote }}
 {{- end }}

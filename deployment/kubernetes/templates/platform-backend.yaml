@@ -1,5 +1,19 @@
-{{- $namespace := include "mip.namespace" . -}}
+{{- $namespace := default "default" .Release.Namespace -}}
 {{- $platformBackend := index .Values "platform-backend" -}}
+{{- $authEnabled := default true .Values.keycloak.enabled -}}
+{{- $authFlag := ternary "1" "0" $authEnabled -}}
+{{- $publicHost := default "" .Values.global.publicHost -}}
+{{- $platformUiUrl := "" -}}
+{{- if $publicHost -}}
+{{- $platformUiUrl = printf "https://%s" $publicHost -}}
+{{- end -}}
+{{- $keycloakProtocol := default "https" .Values.keycloak.protocol -}}
+{{- $keycloakHost := default "" .Values.keycloak.host -}}
+{{- $keycloakRealm := default "MIP" .Values.keycloak.realm -}}
+{{- $keycloakAuthUrl := "" -}}
+{{- if and $keycloakProtocol $keycloakHost -}}
+{{- $keycloakAuthUrl = printf "%s://%s/auth/" $keycloakProtocol $keycloakHost -}}
+{{- end -}}
 {{- $localStorageClass := .Values.cluster.storageClasses.local -}}
 {{- $managedStorageClass := .Values.cluster.storageClasses.managed -}}
 {{- if not .Values.cluster.managed }}
@@ -302,20 +316,11 @@ spec:
               mountPath: /var/log/platform-backend
           env:
             - name: LOG_LEVEL
-              valueFrom:
-                configMapKeyRef:
-                  name: mip-config
-                  key: platform-backend.LOG_LEVEL
+              value: {{ $platformBackend.config.logLevel | quote }}
             - name: LOG_LEVEL_FRAMEWORK
-              valueFrom:
-                configMapKeyRef:
-                  name: mip-config
-                  key: platform-backend.LOG_LEVEL_FRAMEWORK
+              value: {{ $platformBackend.config.logLevelFramework | quote }}
             - name: AUTHENTICATION
-              valueFrom:
-                configMapKeyRef:
-                  name: mip-config
-                  key: keycloak.AUTHENTICATION
+              value: {{ $authFlag | quote }}
             - name: PLATFORM_DB_URL
               value: jdbc:postgresql://localhost:5432/portal
             - name: PLATFORM_DB_SERVER
@@ -331,25 +336,13 @@ spec:
                   name: mip-secret
                   key: platform-backend-db.PLATFORM_DB_PASSWORD
             - name: EXAFLOW_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: mip-config
-                  key: engines.exaflow.URL
+              value: {{ default "" .Values.engines.exaflow.url | quote }}
             - name: PLATFORM_UI_BASE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: mip-config
-                  key: mip.PLATFORM_UI_URL
+              value: {{ $platformUiUrl | quote }}
             - name: KEYCLOAK_AUTH_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: mip-config
-                  key: keycloak.AUTH_URL
+              value: {{ $keycloakAuthUrl | quote }}
             - name: KEYCLOAK_REALM
-              valueFrom:
-                configMapKeyRef:
-                  name: mip-config
-                  key: keycloak.REALM
+              value: {{ $keycloakRealm | quote }}
             - name: KEYCLOAK_CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -360,16 +353,8 @@ spec:
                 secretKeyRef:
                   name: keycloak-credentials
                   key: client-secret
-            # - name: KEYCLOAK_SSL_REQUIRED
-            #   valueFrom:
-            #     configMapKeyRef:
-            #       name: mip-config
-            #       key: keycloak.SSL_REQUIRED
             - name: ALGORITHM_UPDATE_INTERVAL
-              valueFrom:
-                configMapKeyRef:
-                  name: mip-config
-                  key: platform-backend.ALGORITHM_UPDATE_INTERVAL
+              value: {{ $platformBackend.config.algorithmUpdateInterval | quote }}
 
 ---
 apiVersion: v1

@@ -1,56 +1,35 @@
 cluster:
-  namespace: default
   managed: true
   storageClasses:
     local: k8s-local-storage
     managed: ceph-corbo-cephfs
-network:
-  externalIP: ""
-  link: proxied
-  externalProtocol: https
-  publicProtocol: https
-  publicHost: default
+global:
+  publicHost: hbpmip.link
 engines:
   exaflow:
     url: "http://exaflow-controller-service:5000"
-    image:
-      repository: madgik/exaflow
-      tag: 1.0.0
 mip:
-  displayName: MIP
-  version: 9.0.2
-datacatalog:
-  protocol: https
-  host: ""
+  version: 9.0.3
 platform-ui:
   image:
     repository: hbpmip/platform-ui
-    tag: 1.0.1
+    tag: 1.0.2
   service:
     nodePort: 30080
   ingress:
     enabled: true
-    className: nginx-public
+    className: haproxy-public
     certManagerClusterIssuer: letsencrypt-public
     tlsSecretName: platform-ui-tls
-    redirectRootTo: /home
+    redirectRootTo: ''
   backend:
     host: platform-backend-service
     port: 8080
     context: services
-  config:
-    errorLogLevel: ERROR
-    datacatalog:
-      protocol: https
-      host: ""
-    matomo:
-      enabled: false
-      url: ""
-      siteId: ""
 platform-backend:
   image:
     repository: hbpmip/platform-backend
-    tag: 9.1.1
+    tag: 9.1.2
   config:
     logLevel: INFO
     logLevelFramework: INFO
@@ -74,8 +53,3 @@ platformBackendDatabase:
 keycloak:
   enabled: true
   host: iam.ebrains.eu
-  protocol: https
-  realm: MIP
-  clientId: mipfedqa
-  sslRequired: external
-  proxyAddressForwarding: true

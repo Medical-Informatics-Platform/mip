@@ -101,6 +101,10 @@ spec:
       labels:
         app: platform-backend
     spec:
+{{- if not .Values.cluster.managed }}
+      nodeSelector:
+        master: "true"
+{{- end }}
       hostname: platform-backend
       volumes:
         - name: platform-backend-db-claim0

@@ -22,6 +22,10 @@ spec:
       labels:
         app: platform-ui
     spec:
+{{- if not .Values.cluster.managed }}
+      nodeSelector:
+        master: "true"
+{{- end }}
       containers:
         - name: platform-ui
           image: "{{ $platformUi.image.repository }}:{{ $platformUi.image.tag }}"

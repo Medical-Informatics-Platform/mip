@@ -13,7 +13,7 @@ mip:
 platform-ui:
   image:
     repository: hbpmip/platform-ui
-    tag: 1.0.2
+    tag: 1.1.0
   ingress:
     enabled: true
     className: haproxy-public
@@ -26,7 +26,7 @@ platform-ui:
 platform-backend:
   image:
     repository: hbpmip/platform-backend
-    tag: 9.1.2
+    tag: 9.2.0
   config:
     logLevel: INFO
     logLevelFramework: INFO

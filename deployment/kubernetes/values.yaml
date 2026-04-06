@@ -21,7 +21,6 @@ platform-ui:
     className: haproxy-public
     certManagerClusterIssuer: letsencrypt-public
     tlsSecretName: platform-ui-tls
-    redirectRootTo: ''
   backend:
     host: platform-backend-service
     port: 8080

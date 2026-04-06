@@ -68,13 +68,6 @@ metadata:
     cert-manager.io/cluster-issuer: {{ $ingress.certManagerClusterIssuer | quote }}
 {{- end }}
     nginx.ingress.kubernetes.io/rewrite-target: "/"
-{{- $redirect := default "" $ingress.redirectRootTo -}}
-{{- if $redirect }}
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      if ($request_uri = "/") {
-        return 302 {{ $redirect }};
-      }
-{{- end }}
 spec:
   ingressClassName: {{ default "nginx" $ingress.className | quote }}
 {{- if and $ingress.tlsSecretName (not (empty $publicHost)) }}

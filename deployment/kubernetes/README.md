@@ -119,7 +119,7 @@ sudo mkdir -p /data/<MIP_INSTANCE_OR_FEDERATION_NAME>
 sudo chown -R mipadmin.mipadmin /data
 ```
 
-The web-app chart uses dynamically provisioned PVCs on microk8s too. The `storage` addon provides the `k8s.io/microk8s-hostpath` provisioner, and the chart bootstraps a local `StorageClass` on top of it for the MIP PVCs.
+The web-app chart uses dynamically provisioned PVCs on microk8s too. The `storage` addon provides the `k8s.io/microk8s-hostpath` provisioner, and the chart bootstraps a local `StorageClass` on top of it for the MIP PVCs. That `StorageClass` uses `WaitForFirstConsumer` binding so PVC placement follows pod scheduling more safely on multi-node microk8s clusters.
 
 For a "federated" deployment, you may want to add nodes to your cluster. "microk8s add-node" will give you a **one-time usage** token, which you can use on a worker node to actually "join" the cluster. This process must be repeated on all the worker nodes.
 

@@ -67,7 +67,6 @@ metadata:
 {{- if $ingress.certManagerClusterIssuer }}
     cert-manager.io/cluster-issuer: {{ $ingress.certManagerClusterIssuer | quote }}
 {{- end }}
-    nginx.ingress.kubernetes.io/rewrite-target: "/"
 spec:
   ingressClassName: {{ default "nginx" $ingress.className | quote }}
 {{- if and $ingress.tlsSecretName (not (empty $publicHost)) }}

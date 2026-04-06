@@ -6,7 +6,7 @@ MIP now supports two Kubernetes infrastructure options:
 1. **VM-based / microk8s clusters** – the remainder of this document (starting in the Requirements section) walks through preparing Ubuntu virtual machines and installing the stack on top of microk8s.
 2. **Managed clusters** – for cloud-managed Kubernetes (AKS/EKS/GKE, etc.) follow the [mip-infra getting started guide](https://github.com/Medical-Informatics-Platform/mip-infra?tab=readme-ov-file#-getting-started) to provision the cluster and its base services. Once the cluster is available, return here for component configuration details as needed.
 
-Choose between these modes via the Helm values: set `cluster.managed: true` (managed) or `false` (microk8s/VM). The templates react to this flag to deploy the components with the right assumptions for networking, storage, and access.
+Choose between these modes via the Helm values: set `cluster.managed: true` (managed) or `false` (microk8s/VM). The chart now keeps the same workload shape in both modes and uses the flag only to select the storage class and, for microk8s, bootstrap the local `StorageClass`.
 
 ## Requirements
 ### Hardware
@@ -53,9 +53,9 @@ Afterward, The dataset CSV files should be placed in their proper pathology fold
 ## Configuration
 Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there are a few adjustments to make in `values.yaml`. Each top-level section controls a part of the stack:
 
-* `cluster`: storage classes and whether the cluster provisions persistent volumes dynamically (`managed: true`).
+* `cluster`: storage classes and whether the chart should use the managed storage class or the microk8s local storage class.
 * `global`: shared public hostname used by the ingress and backend redirects.
-* `platform-ui`, `platform-backend`, `platformBackendDatabase`: container images and component specific options (including the platform-ui ingress/tls settings).
+* `platform-ui`, `platform-backend`, `platformBackendDatabase`: container images and component specific options (including the shared ingress/tls settings and PVC sizes).
 * `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`).
 
 Copy `values.yaml` to a new file (for example `my-values.yaml`) and edit it in-place. A few important knobs:
@@ -110,7 +110,7 @@ sudo adduser mipadmin microk8s
 
 As *mipadmin* user:
 ```
-microk8s enable dns helm3 ingress
+microk8s enable dns helm3 ingress storage
 ```
 ```
 sudo mkdir -p /data/<MIP_INSTANCE_OR_FEDERATION_NAME>
@@ -118,6 +118,8 @@ sudo mkdir -p /data/<MIP_INSTANCE_OR_FEDERATION_NAME>
 ```
 sudo chown -R mipadmin.mipadmin /data
 ```
+
+The web-app chart uses dynamically provisioned PVCs on microk8s too. The `storage` addon provides the `k8s.io/microk8s-hostpath` provisioner, and the chart bootstraps a local `StorageClass` on top of it for the MIP PVCs.
 
 For a "federated" deployment, you may want to add nodes to your cluster. "microk8s add-node" will give you a **one-time usage** token, which you can use on a worker node to actually "join" the cluster. This process must be repeated on all the worker nodes.
 
@@ -168,6 +170,7 @@ For a more in-depth guide on deploying Exaflow, please refer to the documentatio
   ```
 
 * Copy `values.yaml` to `/opt/mip-deployment/kubernetes/my-values.yaml` and tailor it to your environment.
+  * On microk8s, keep `cluster.managed: false` so the chart uses the local storage class it bootstraps.
 * Deploy (or upgrade) the Helm release with your customised values
   ```
   microk8s helm3 upgrade --install mip \

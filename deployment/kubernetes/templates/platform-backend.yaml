@@ -16,147 +16,9 @@
 {{- end -}}
 {{- $localStorageClass := .Values.cluster.storageClasses.local -}}
 {{- $managedStorageClass := .Values.cluster.storageClasses.managed -}}
-{{- if not .Values.cluster.managed }}
+{{- $backendStorageClass := ternary $managedStorageClass $localStorageClass .Values.cluster.managed -}}
 ---
-# 1) platform-backend DB data on hostPath
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: platform-backend-db-vol0
-  labels:
-    storage: platform-backend-db-storage0
-spec:
-  capacity:
-    storage: {{ .Values.platformBackendDatabase.persistence.size }}
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Delete
-  storageClassName: {{ $localStorageClass }}
-  hostPath:
-    path: {{ .Values.platformBackendDatabase.persistence.localPath }}
-    type: DirectoryOrCreate
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: master
-              operator: In
-              values:
-                - "true"
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: platform-backend-db-claim0
-  namespace: {{ $namespace }}
-  labels:
-    storage: platform-backend-db-storage0
-spec:
-  selector:
-    matchLabels:
-      storage: platform-backend-db-storage0
-  storageClassName: {{ $localStorageClass }}
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ .Values.platformBackendDatabase.persistence.size }}
-
----
-# 2) platform-backend config/storage on hostPath
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: platform-backend-storage-vol0
-  labels:
-    storage: platform-backend-storage0
-spec:
-  capacity:
-    storage: {{ $platformBackend.persistence.data.size }}
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Delete
-  storageClassName: {{ $localStorageClass }}
-  hostPath:
-    path: {{ $platformBackend.persistence.data.localPath }}
-    type: DirectoryOrCreate
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: master
-              operator: In
-              values:
-                - "true"
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: platform-backend-claim0
-  namespace: {{ $namespace }}
-  labels:
-    storage: platform-backend-storage0
-spec:
-  selector:
-    matchLabels:
-      storage: platform-backend-storage0
-  storageClassName: {{ $localStorageClass }}
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ $platformBackend.persistence.data.size }}
-
----
-# 3) platform-backend logs on hostPath
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: platform-backend-logs-vol0
-  labels:
-    storage: platform-backend-logs-storage0
-spec:
-  capacity:
-    storage: {{ $platformBackend.persistence.logs.size }}
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: {{ $localStorageClass }}
-  hostPath:
-    path: {{ $platformBackend.persistence.logs.localPath }}
-    type: DirectoryOrCreate
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: master
-              operator: In
-              values:
-                - "true"
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: platform-backend-logs-claim0
-  namespace: {{ $namespace }}
-  labels:
-    storage: platform-backend-logs-storage0
-spec:
-  selector:
-    matchLabels:
-      storage: platform-backend-logs-storage0
-  storageClassName: {{ $localStorageClass }}
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ $platformBackend.persistence.logs.size }}
-{{- else }}
----
-# managed cluster: only dynamic PVCs on CephFS
+# platform-backend PVCs
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -166,12 +28,13 @@ metadata:
     # tells Argo CD: do not prune (delete) this resource
     argocd.argoproj.io/sync-options: Delete=false,Prune=false
 spec:
-  storageClassName: {{ $managedStorageClass }}
+  storageClassName: {{ $backendStorageClass }}
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: {{ .Values.platformBackendDatabase.persistence.size }}
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -182,12 +45,13 @@ metadata:
     # tells Argo CD: do not prune (delete) this resource
     argocd.argoproj.io/sync-options: Delete=false,Prune=false
 spec:
-  storageClassName: {{ $managedStorageClass }}
+  storageClassName: {{ $backendStorageClass }}
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: {{ $platformBackend.persistence.data.size }}
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -198,13 +62,12 @@ metadata:
     # tells Argo CD: do not prune (delete) this resource
     argocd.argoproj.io/sync-options: Delete=false,Prune=false
 spec:
-  storageClassName: {{ $managedStorageClass }}
+  storageClassName: {{ $backendStorageClass }}
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: {{ $platformBackend.persistence.logs.size }}
-{{- end }}
 
 ---
 
@@ -238,10 +101,6 @@ spec:
       labels:
         app: platform-backend
     spec:
-{{- if not .Values.cluster.managed }}
-      nodeSelector:
-        master: "true"
-{{- end }}
       hostname: platform-backend
       volumes:
         - name: platform-backend-db-claim0

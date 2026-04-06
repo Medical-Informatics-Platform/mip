@@ -1,6 +1,5 @@
 {{- $namespace := default "default" .Release.Namespace -}}
 {{- $platformUi := index .Values "platform-ui" -}}
-{{- $platformBackend := index .Values "platform-backend" -}}
 {{- $ingress := default (dict) $platformUi.ingress -}}
 {{- $backendHost := default "" $platformUi.backend.host -}}
 {{- $backendPort := default 8080 $platformUi.backend.port -}}
@@ -50,12 +49,6 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
-{{- if not .Values.cluster.managed }}
-  type: NodePort
-{{- if $platformUi.service.nodePort }}
-  nodePort: {{ $platformUi.service.nodePort }}
-{{- end }}
-{{- end }}
 {{- if and $ingressEnabled (not (empty $publicHost)) }}
 ---
 apiVersion: networking.k8s.io/v1

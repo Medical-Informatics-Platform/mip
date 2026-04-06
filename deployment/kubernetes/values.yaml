@@ -14,8 +14,6 @@ platform-ui:
   image:
     repository: hbpmip/platform-ui
     tag: 1.0.2
-  service:
-    nodePort: 30080
   ingress:
     enabled: true
     className: haproxy-public
@@ -35,10 +33,8 @@ platform-backend:
     algorithmUpdateInterval: 60
   persistence:
     data:
-      localPath: /opt/mip-deployment/config
       size: 100Mi
     logs:
-      localPath: /opt/mip-deployment/logs
       size: 1Gi
 
 platformBackendDatabase:
@@ -46,7 +42,6 @@ platformBackendDatabase:
     repository: postgres
     tag: 18.3-alpine
   persistence:
-    localPath: /opt/mip-deployment/.stored_data/platform_backenddb
     size: 1Gi
 
 keycloak:

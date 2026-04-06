@@ -7,5 +7,5 @@ metadata:
   labels:
     app: {{ $localStorageClass }}
 provisioner: k8s.io/microk8s-hostpath
-volumeBindingMode: Immediate
+volumeBindingMode: WaitForFirstConsumer
 {{- end }}

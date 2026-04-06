@@ -14,3 +14,4 @@ __pycache__
 dev/.env
 .venv
 .env
+/deployment/dev/data/stroke

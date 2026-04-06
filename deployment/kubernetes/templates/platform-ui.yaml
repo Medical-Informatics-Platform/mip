@@ -1,15 +1,11 @@
-{{- $namespace := include "mip.namespace" . -}}
+{{- $namespace := default "default" .Release.Namespace -}}
 {{- $platformUi := index .Values "platform-ui" -}}
-{{- $platformBackend := index .Values "platform-backend" -}}
 {{- $ingress := default (dict) $platformUi.ingress -}}
 {{- $backendHost := default "" $platformUi.backend.host -}}
 {{- $backendPort := default 8080 $platformUi.backend.port -}}
 {{- $backendContext := default "services" $platformUi.backend.context -}}
-{{- $ingressEnabled := true -}}
-{{- if hasKey $ingress "enabled" -}}
-{{- $ingressEnabled = $ingress.enabled -}}
-{{- end -}}
-{{- $publicHost := default "" .Values.network.publicHost -}}
+{{- $ingressEnabled := default true $ingress.enabled -}}
+{{- $publicHost := default "" .Values.global.publicHost -}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -26,18 +22,16 @@ spec:
       labels:
         app: platform-ui
     spec:
+{{- if not .Values.cluster.managed }}
+      nodeSelector:
+        master: "true"
+{{- end }}
       containers:
         - name: platform-ui
           image: "{{ $platformUi.image.repository }}:{{ $platformUi.image.tag }}"
           ports:
             - containerPort: 80
           env:
-            - name: FRONTEND_VERSION
-              value: {{ default "" $platformUi.image.tag | quote }}
-            - name: BACKEND_VERSION
-              value: {{ default "" $platformBackend.image.tag | quote }}
-            - name: EXAFLOW_VERSION
-              value: {{ default "" .Values.engines.exaflow.image.tag | quote }}
             - name: MIP_VERSION
               value: {{ default "" .Values.mip.version | quote }}
 {{- if $backendHost }}
@@ -59,12 +53,6 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
-{{- if not .Values.cluster.managed }}
-  type: NodePort
-{{- if $platformUi.service.nodePort }}
-  nodePort: {{ $platformUi.service.nodePort }}
-{{- end }}
-{{- end }}
 {{- if and $ingressEnabled (not (empty $publicHost)) }}
 ---
 apiVersion: networking.k8s.io/v1
@@ -73,17 +61,8 @@ metadata:
   name: platform-ui-ingress
   namespace: {{ $namespace }}
   annotations:
-    kubernetes.io/ingress.class: {{ default "nginx" $ingress.className | quote }}
 {{- if $ingress.certManagerClusterIssuer }}
     cert-manager.io/cluster-issuer: {{ $ingress.certManagerClusterIssuer | quote }}
-{{- end }}
-    nginx.ingress.kubernetes.io/rewrite-target: "/"
-{{- $redirect := default "" $ingress.redirectRootTo -}}
-{{- if $redirect }}
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      if ($request_uri = "/") {
-        return 302 {{ $redirect }};
-      }
 {{- end }}
 spec:
   ingressClassName: {{ default "nginx" $ingress.className | quote }}

@@ -23,6 +23,9 @@ platform-ui:
     host: platform-backend-service
     port: 8080
     context: services
+  guide:
+    covariate: Sex
+    variable: Age
 platform-backend:
   image:
     repository: hbpmip/platform-backend

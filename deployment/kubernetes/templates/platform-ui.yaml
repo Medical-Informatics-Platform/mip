@@ -4,6 +4,9 @@
 {{- $backendHost := default "" $platformUi.backend.host -}}
 {{- $backendPort := default 8080 $platformUi.backend.port -}}
 {{- $backendContext := default "services" $platformUi.backend.context -}}
+{{- $guide := default (dict) $platformUi.guide -}}
+{{- $guideCovariate := default "Sex" $guide.covariate -}}
+{{- $guideVariable := default "Age" $guide.variable -}}
 {{- $ingressEnabled := default true $ingress.enabled -}}
 {{- $publicHost := default "" .Values.global.publicHost -}}
 ---
@@ -34,6 +37,10 @@ spec:
           env:
             - name: MIP_VERSION
               value: {{ default "" .Values.mip.version | quote }}
+            - name: GUIDE_COVARIATE
+              value: {{ $guideCovariate | quote }}
+            - name: GUIDE_VARIABLE
+              value: {{ $guideVariable | quote }}
 {{- if $backendHost }}
             - name: PLATFORM_BACKEND_SERVER
               value: {{ printf "%s:%v" $backendHost $backendPort | quote }}

@@ -9,7 +9,7 @@ engines:
   exaflow:
     url: "http://exaflow-controller-service:5000"
 mip:
-  version: 9.0.3
+  version: 9.0.4
 platform-ui:
   image:
     repository: hbpmip/platform-ui
@@ -29,7 +29,7 @@ platform-ui:
 platform-backend:
   image:
     repository: hbpmip/platform-backend
-    tag: 9.2.0
+    tag: 9.2.1
   config:
     logLevel: INFO
     logLevelFramework: INFO

@@ -18,4 +18,4 @@ Use the Kubernetes guide for production-like and federated installations.
 
 ## Supporting Documentation
 
-- [Data requirements for onboarding new datasets](docs/NewDataRequirements.md): CSV and `CDEsMetadata.json` format rules, including additional constraints for longitudinal data.
+- [Data requirements for onboarding new datasets](../documentation/MIP_Data_management_documentation.md): CSV and `CDEsMetadata.json` format rules, including additional constraints for longitudinal data.

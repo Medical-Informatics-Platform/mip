@@ -102,7 +102,7 @@ Through description of the steps required before being able to upload data on th
 | **Tasks** | Check the dataset csv file quality against the CDEs | Perform the data cleaning and validation | Upload of the dataset csv file on the local node |
 | **Tools** | MIP-DQC Tool | MIP-DQC Tool |
 
-![The MIP data flow](./images/The%20MIP%20Data%20flow.jpg)
+![The MIP data flow](./images/The%20MIP%20Data%20flow.png)
 
 ## Extraction and compilation of clinical data as a csv file
 

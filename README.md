@@ -13,7 +13,6 @@ A powerful federated data processing and analysis system that preserves patient 
 - [Data Management](#data-management)
 - [High Level Description](#high-level-description)
 - [Architecture](#architecture)
-- [Installation Prerequisites](#installation-prerequisites)
 
 # Preamble
 
@@ -59,7 +58,6 @@ This includes documentation on existing algorithm federation approach as well as
 - [Available federated analysis algorithms](documentation/algorithms.md)
 - [Exaflow Analytic Engine](https://github.com/madgik/exaflow/tree/1.0.0)
 
-
 # Data Management
 
 For all details relating to the Data Factory, how to manage your data and process it for use with the MIP, please consult the following document
@@ -78,14 +76,13 @@ For a high-level description of the MIP please consult:
 
 - [The MIP: A powerful federated data processing and analysis system that preserves patient privacy](https://ebrains.eu/data-tools-services/medical-analytics/medical-informatics-platform) on EBRAINS research infrastructure
 
-
 # Architecture
 
-[High-level view of the architecture](documentation/Architecture.md), the main building blocks and data flows.
+- [High-level view of the architecture](documentation/Architecture.md), the main building blocks and data flows.
 
-# Installation Prerequisites
+# Onboarding guidance
 
-- See [Deployment Pack](documentation/deployment-pack/README.md)
+- [Onboarding to the Medical Informatics Platform MIP](https://wiki.ebrains.eu/bin/view/Collabs/onboarding-to-the-mip/) on EBRAINS Collaboratory
 
 # Acknowledgement
 This project/research received funding from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Framework Partnership Agreement No. 650003 (HBP FPA).

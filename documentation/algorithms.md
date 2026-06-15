@@ -1,61 +1,61 @@
-# Federated Analysis Algorithms Descriptions
+# Federated Analysis Algorithms
 
-More information on the available federated analysis algorithms, although retrievable through the individual component list, can be directly found on [https://github.com//madgik/exaflow/tree/master/documentation/algorithms](https://github.com/madgik/exaflow/tree/master/documentation/algorithms)
+The MIP federated analysis algorithms are implemented and documented in Exaflow.
+The algorithm-specific technical documentation is available in the Exaflow
+repository under
+[documentation/algorithms](https://github.com/madgik/exaflow/tree/master/documentation/algorithms).
 
-This includes documentation on the existing algorithm federation approach, unit tests, as well as information related to creating a new algorithm.
+The linked Exaflow documentation describes each algorithm's inputs, parameters,
+statistical or machine-learning method, federated computation, outputs,
+validation reference, and limitations.
 
-###  k-Means Clustering
-The purpose of the k-means algorithm is to partition the data into k clusters. Here, all attributes should be numerical and we use the Eucledean distance as our metric.  
+## Summary and Visualization
 
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/k-means.md)
+| Algorithm | Description | Documentation |
+|---|---|---|
+| Descriptive Statistics | Summarizes selected numerical and nominal variables with per-dataset and combined summaries. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/Describe.md) |
+| Histogram | Computes counts for one numerical or categorical variable, optionally split by categorical grouping variables. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/Histogram.md) |
+| Outlier Report | Reports outlier bounds, counts, and percentages for numerical variables using Gaussian, IQR, MAD, or quantile rules. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/outlier_report.md) |
 
-### ANOVA
-Analysis of variance (ANOVA) is a collection of statistical models and their associated estimation procedures (such as the "variation" among and between groups) used to analyze the differences among group means in a sample. The platform offers both one-way and two-way ANOVA analysis tools. [Wikipedia](https://en.wikipedia.org/wiki/Analysis_of_variance)
+## Statistical Tests
 
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/ANOVA.md)
+| Algorithm | Description | Documentation |
+|---|---|---|
+| One-way ANOVA | Tests whether a numerical outcome has the same mean across levels of one categorical grouping variable. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/ANOVAOneWay.md) |
+| Two-way ANOVA | Tests whether a numerical outcome differs across two categorical factors, including main effects and interaction. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/ANOVATwoWay.md) |
+| Chi-squared Test | Evaluates whether two categorical variables are independent using a contingency table. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/ChiSquared.md) |
+| Fisher's Exact Test | Evaluates association between two binary categorical variables using exact 2 by 2 table probabilities. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/FisherExact.md) |
+| Independent t-test | Compares the mean of a numerical variable between two independent groups using the pooled-variance Student t-test. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/TtestIndependent.md) |
+| One-sample t-test | Compares the mean of a numerical variable with a reference mean. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/TtestOneSample.md) |
+| Paired t-test | Compares two related numerical measurements by testing whether the mean paired difference is zero. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/TtestPaired.md) |
+| Pearson Correlation | Measures linear association between numerical variables and reports correlations, p-values, and confidence intervals. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/Pearson.md) |
 
-### Linear Regression
-Linear regression is a linear approach to modelling the relationship between a dependent variable and one or more independent variables. This algorithm is also available on the platform with cross-validation.
+## Regression and Survival Analysis
 
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/LinearRegression.md)
+| Algorithm | Description | Documentation |
+|---|---|---|
+| Linear Regression | Fits an ordinary least squares model for a numerical outcome using numerical and/or categorical covariates. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/LinearRegression.md) |
+| Logistic Regression | Models a binary outcome as a function of numerical and/or categorical covariates. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/LogisticRegression.md) |
+| Cox Proportional Hazards Regression | Models time-to-event data with a partial likelihood Cox model and an unspecified baseline hazard. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/cox_regression_classical.md) |
+| Stacked Cox Regression | Approximates time-to-event modeling by expanding survival data into risk-set rows and fitting logistic regression with time-bin indicators. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/cox_regression_stacked.md) |
 
-### Logistic Regression
-Logistic Regression training is done by Maximum Likelihood Estimation (MLE) by gradient descent using, for example, Newton's method. Applying Newton's method leads to the following algorithm, called Iteratively Reweighted Least Squares (IRLS). Here the dependent variable y has to be binary. This algorithm is also available with cross-validation. 
+## Machine Learning
 
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/LogisticRegression.md)
+| Algorithm | Description | Documentation |
+|---|---|---|
+| K-means | Partitions observations into clusters using numerical variables and squared Euclidean distance. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/k-means.md) |
+| Principal Component Analysis | Computes principal components using global standardization and eigendecomposition of the aggregated covariance matrix. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/PCA.md) |
+| PCA with Transformations | Applies selected per-variable transformations before computing principal components. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/PCAWithTransformation.md) |
+| Gaussian Naive Bayes | Classifies observations with numerical features by modeling each feature as Gaussian within each class. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/NaiveBayesGaussian.md) |
+| Gaussian Naive Bayes K-fold Cross-validation | Evaluates Gaussian Naive Bayes with K-fold cross-validation and returns confusion-matrix and fold-level metrics. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/NaiveBayesGaussianCV.md) |
+| Categorical Naive Bayes | Classifies observations with nominal features by estimating class-conditional category probabilities. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/NaiveBayesCategorical.md) |
+| Categorical Naive Bayes K-fold Cross-validation | Evaluates categorical Naive Bayes with K-fold cross-validation and returns confusion-matrix and fold-level metrics. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/NaiveBayesCategoricalCV.md) |
+| Linear SVM | Fits linear support vector classifiers at each site and averages learned coefficients and intercepts. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/SVM.md) |
+| Federated Averaging | Combines model parameters learned separately at multiple sites by averaging each named parameter array. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/FederatedAveraging.md) |
 
-### Naive Bayes Classifier
-In machine learning, naïve Bayes classifiers are a family of simple "probabilistic classifiers" based on applying Bayes' theorem with strong (naïve) independence assumptions between the features. The platform offers Gaussian Naive Bayes classification and Categorical Naive Bayes classification, and they both make use of the cross-validation technique. [Wikipedia](https://en.wikipedia.org/wiki/Naive_Bayes_classifier)
+## Preprocessing
 
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/NaiveBayes.md)
-
-### Pearson Correlation
-This algorithm computes the Pearson correlation coefficient between two vectors x and y using the eq.(1)  
-
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/Pearson.md)
-
-### Principal Components Analysis (PCA)
-The are usually two approaches for computing the principal components. The first is by diagonalizing the covariance matrix, while the second is by SVD decomposition on the data matrix X. In most implementations, the second approach is preferred due to its numerical stability. Here, however, we took the first approach since it better fits with our privacy requirements. Additionally, as a first step, data is centered and standardized.  
-
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/PCA.md)
-
-### Support Vector Machine (SVM)
-In machine learning, support vector machines (SVMs, also support vector networks[1]) are supervised learning models with associated learning algorithms that analyze data for classification and regression analysis. [Wikipedia](https://en.wikipedia.org/wiki/Support_vector_machine)
-
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/SVM.md)
-
-### Independent T-Test
-The Student’s Independent sample t-test (sometimes called a two-sample t-test) is used to test the null hypothesis that two groups have the same mean. A low p-value suggests that the null hypothesis is not true, and therefore the group means are different. In each local dataset, let x and y be the variables of interest. y is the grouping variable with two levels.  
-
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/TtestIndependent.md)
-
-### One-Sample T-Test 
-The Student’s One-sample t-test is used to test the null hypothesis that the true mean is equal to a particular value (typically zero). A low p-value suggests that the null hypothesis is not true, and therefore the true mean (μ) must be different from the test value. In each local dataset, let xj be the variable of interest.  
-
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/TtestOneSample.md)
-
-### Paired T-Test 
-The Student’s paired samples t-test (sometimes called a dependent-samples t-test) is used to test the null hypothesis that the difference between pairs of measurements is equal to zero. A low p-value suggests that the null hypothesis is not true, and that the difference between the measurement pairs is not zero. In each local dataset, let xj1 and xj2 be the variables of interest.  
-
-[Documentation](https://github.com/madgik/exaflow/tree/master/documentation/algorithms/TtestPaired.md)
-
+| Algorithm | Description | Documentation |
+|---|---|---|
+| Preprocessing Steps | Documents missing-value handling, outlier winsorization, and longitudinal transformation steps used before downstream algorithms. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/PreprocessingSteps.md) |
+| Outlier Winsorizer | Clips selected numerical variables to bounds computed from Gaussian, IQR, MAD, or quantile rules. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/outlier_winsorizer.md) |

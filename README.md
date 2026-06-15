@@ -6,7 +6,7 @@ A powerful federated data processing and analysis system that preserves patient 
 # Table of Content <!-- omit in toc --> 
 
 - [Preamble](#preamble)
-- [9.0 Release](#mip-90-release--major-updates)
+- [9.1 Release](#mip-91-release--major-updates)
 - [Components](#components)
 - [Deployment](#deployment)
 - [Federated Analysis Algorithms](#federated-analysis-algorithms)
@@ -22,24 +22,38 @@ This information is evolving along with the MIP so please make sure you consult 
 
 In the following sections, links and references to useful information is made available.
 
-# MIP 9.0 Release – Major Updates
+# MIP 9.1 Release – Major Updates
 
-## **Platform-UI - New user interface**
-The new user interface has been developed from scratch, to provide the user a more native experience to federated learning.
-The algorithm visualizations have also been reworked to provide a more meaningful view in the results.
+## **Broader federated analytics**
 
-## **Platform-Backend - Improvements to support the new user interface**
-Other than required improvements to support the new user interface, the backend has also rewritten the communication
-flow with the engine.
+MIP 9.1 expands the range of analyses that can be performed across distributed
+clinical datasets without moving patient-level data. The release adds support
+for more advanced statistical workflows, including survival analysis,
+association testing, histogram exploration, outlier reporting, and mixed-effects
+modeling, while refreshing the documentation for the core analysis portfolio.
 
-## **Exaflow – Federated Engine Revamp**
+## **Improved analysis workflow**
 
-Exaflow, the former Exareme2 engine, underwent major improvements, allowing for the integration of other federated learning engines.
+The analysis experience has been refined to make experiment setup and result
+review clearer. Users get better guidance when selecting variables and
+configuring algorithms, clearer feedback when an analysis cannot run with the
+selected inputs, and improved result views with more consistent tables, charts,
+labels, and export actions.
 
-Closely integrated in exaflow is exareme3, our federated learning engine, using duckdb for data loading, grpc for 
-communications and an aggregation server, allowing for a new paradigm in federated learning. 
+## **Built-in data preparation options**
 
-Flower is also integrated, allowing for flower-developed algorithm integration as-is.
+MIP 9.1 introduces more data preparation options directly into the analysis
+workflow. Missing-value handling, outlier handling, and longitudinal
+transformations can be configured before running an analysis, reducing the need
+for manual preparation outside the platform.
+
+## **More maintainable and deployment-ready platform**
+
+The platform has been updated with newer component versions, refreshed
+deployment defaults, and reviewed documentation for deployment, data management,
+architecture, and onboarding. The release also improves alignment between the
+user interface, backend services, and federated analysis engine, making the
+platform easier to operate and evolve.
 
 # Components
 
@@ -56,7 +70,7 @@ The MIP comes with a single code base but with two modes of deployment. One for 
 This includes documentation on existing algorithm federation approach as well as information related to creating a new algorithm.
 
 - [Available federated analysis algorithms](documentation/algorithms.md)
-- [Exaflow Analytic Engine](https://github.com/madgik/exaflow/tree/1.0.0)
+- [Exaflow Analytic Engine](https://github.com/madgik/exaflow/tree/1.1.0)
 
 # Data Management
 
@@ -68,7 +82,7 @@ A detailed user guide for Data Quality Control tool can be found here:
  - [Data Quality Control Tool Guide](https://github.com/HBPMedical/DataQualityControlTool/wiki)
 
 Data Catalog is a component of the Medical Informatics Platform (MIP) for the EBrains. It enables seamless management, visualization, and access to data models and medical conditions.
- - [Data Catalog Guide](https://github.com/Medical-Informatics-Platform/datacatalog/tree/1.2.1)
+ - [Data Catalog Guide](https://github.com/Medical-Informatics-Platform/datacatalog)
 
 # High Level Description
 

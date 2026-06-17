@@ -1,0 +1,168 @@
+# JupyterHub values for production-style deployment behind the platform-ui /notebook path.
+# Install in the same namespace as the MIP release.
+#
+# Goal: per-user authentication.
+# - User logs in to JupyterHub via Keycloak (OIDC).
+# - JupyterHub passes the user's access token into the single-user server as PORTAL_TOKEN.
+# - mip automatically picks PORTAL_TOKEN up.
+#
+# Notes:
+# - Do NOT commit real secrets here. Provide them via helm --set, an external values file, or a Kubernetes Secret.
+# - Your Keycloak token must be accepted by Platform Backend (audience/scope). If Platform Backend rejects it,
+#   you need to adjust Keycloak client mappers (audience) or use token exchange.
+
+hub:
+  baseUrl: /notebook
+
+  # Required for auth_state (token storage). Set this via secret in real deployments.
+  # Example (recommended): provide JUPYTERHUB_CRYPT_KEY via a Kubernetes Secret.
+  extraEnv:
+    JUPYTERHUB_CRYPT_KEY: "replace-me-with-32-bytes-hex-or-base64"
+    # IMPORTANT: Must be the PUBLIC platform-ui origin, not an internal service address.
+    # This prevents cross-origin redirects that break iframe embedding.
+    # Example: https://<public-host>/notebook/hub/oauth_callback
+    JH_OAUTH_CALLBACK_URL: "https://mip.example.org/notebook/hub/oauth_callback"
+    # Controls iframe embedding. In production (same-origin) "'self'" is typically sufficient.
+    # If you serve platform-ui and JupyterHub from different origins, add them here.
+    # Example: "'self' https://mip.example.org"
+    JH_FRAME_ANCESTORS: "'self'"
+
+  config:
+    JupyterHub:
+      authenticator_class: generic-oauth
+      tornado_settings:
+        headers:
+          # Allow embedding inside the Platform UI wrapper page.
+          Content-Security-Policy: "frame-ancestors 'self'"
+
+    # Store OAuth tokens in auth_state and refresh on spawn when possible.
+    Authenticator:
+      enable_auth_state: true
+      refresh_pre_spawn: true
+
+    GenericOAuthenticator:
+      login_service: Keycloak
+
+      # OAuthenticator >= 17 defaults to deny unless allow_all/allowed_users/allowed_groups are set.
+      allow_all: true
+
+      # Skip the Hub login page button; immediately start the OAuth flow.
+      auto_login: true
+
+      # Keycloak client credentials for the JupyterHub OAuth client.
+      client_id: mippublic
+      client_secret: ""
+
+      # Keycloak realm endpoints.
+      authorize_url: https://iam.ebrains.eu/auth/realms/MIP/protocol/openid-connect/auth
+      token_url: https://iam.ebrains.eu/auth/realms/MIP/protocol/openid-connect/token
+      userdata_url: https://iam.ebrains.eu/auth/realms/MIP/protocol/openid-connect/userinfo
+
+      username_key: preferred_username
+      scope:
+        - openid
+        - profile
+        - email
+        # Enable refresh tokens if your Keycloak realm/client is configured for it.
+        - offline_access
+
+  extraConfig:
+    # Pass the user's Keycloak access token to the single-user server.
+    # The python client reads it from PORTAL_TOKEN.
+    10-portal-token.py: |
+      import os
+
+      # The OAuth callback URL must match the public origin (ingress host) so redirects
+      # stay same-origin with the Platform UI and iframe embedding works.
+      _cb = os.environ.get("JH_OAUTH_CALLBACK_URL")
+      if _cb:
+          c.GenericOAuthenticator.oauth_callback_url = _cb
+
+      # Allow embedding inside the Platform UI wrapper.
+      _fa = os.environ.get("JH_FRAME_ANCESTORS", "'self'")
+      c.JupyterHub.tornado_settings = {
+          "headers": {
+              "Content-Security-Policy": f"frame-ancestors {_fa}",
+          }
+      }
+      # Hub CSP is not enough; single-user server must also allow embedding.
+      c.Spawner.args = [
+          f'--ServerApp.tornado_settings={{"headers":{{"Content-Security-Policy":"frame-ancestors {_fa}"}}}}',
+      ]
+
+      async def _inject_portal_token(spawner):
+          auth_state = await spawner.user.get_auth_state()
+          if not auth_state:
+              spawner.log.warning("No auth_state available; PORTAL_TOKEN will not be set")
+              return
+
+          token = (
+              auth_state.get("access_token")
+              or (auth_state.get("token_response") or {}).get("access_token")
+          )
+
+          if not token:
+              spawner.log.warning("No access_token found in auth_state; PORTAL_TOKEN will not be set")
+              return
+
+          # Platform Backend base URL from inside the cluster.
+          spawner.environment.setdefault(
+              "PLATFORM_BACKEND_URL",
+              os.environ.get("PLATFORM_BACKEND_URL", "http://platform-backend-service:8080/services"),
+          )
+          spawner.environment["PORTAL_TOKEN"] = token
+
+      c.Spawner.pre_spawn_hook = _inject_portal_token
+
+      # Hub-side endpoint for single-user servers to fetch a fresh access token.
+      # Called by mip when the injected token expires.
+      from jupyterhub.apihandlers.base import APIHandler
+      from tornado import web
+
+      class PortalTokenHandler(APIHandler):
+          @web.authenticated
+          async def get(self):
+              user = self.current_user
+              if not user:
+                  raise web.HTTPError(401)
+
+              auth_model = await self.authenticator.refresh_user(user, handler=self)
+              if auth_model is False:
+                  raise web.HTTPError(401, 'Authentication expired; please login again')
+              if isinstance(auth_model, dict):
+                  await user.save_auth_state(auth_model.get('auth_state') or {})
+
+              auth_state = await user.get_auth_state() or {}
+              token = auth_state.get('access_token') or (auth_state.get('token_response') or {}).get('access_token')
+              if not token:
+                  raise web.HTTPError(404, 'No access_token in auth_state')
+
+              self.finish({'access_token': token})
+
+      c.JupyterHub.extra_handlers = [(r'/api/portal-token', PortalTokenHandler)]
+
+proxy:
+  service:
+    type: ClusterIP
+  https:
+    enabled: false
+
+ingress:
+  enabled: false
+
+singleuser:
+  defaultUrl: /lab
+
+  # Optional: set cluster-internal backend URL (hook will default to it anyway).
+  extraEnv:
+    PLATFORM_BACKEND_URL: "http://platform-backend-service:8080/services"
+
+  storage:
+    dynamic:
+      storageClass: ceph-corbo-cephfs
+    capacity: 10Gi
+
+cull:
+  enabled: true
+  timeout: 3600
+  every: 600

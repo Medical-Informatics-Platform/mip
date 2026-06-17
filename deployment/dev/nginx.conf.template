@@ -1,0 +1,38 @@
+server {
+    listen 80;
+
+    # Serve Angular app
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Route other API requests to the backend
+    location /${PLATFORM_BACKEND_CONTEXT}/ {
+        proxy_pass http://${PLATFORM_BACKEND_SERVER};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Route notebook traffic to Jupyter
+    location /${JUPYTER_CONTEXT}/ {
+        set $notebook_enabled "${NOTEBOOK_ENABLED}";
+        if ($notebook_enabled != "1") {
+            return 404;
+        }
+        # Required when proxy_pass uses a variable hostname in Docker networks.
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $jupyter_upstream "${JUPYTER_SERVER}";
+        proxy_pass http://$jupyter_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Fallback to index.html for Angular routing
+    location / {
+        try_files $uri /index.html;
+    }
+}

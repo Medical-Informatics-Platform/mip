@@ -26,6 +26,34 @@ platform-ui:
   guide:
     covariate: Sex
     variable: Age
+notebook:
+  enabled: false
+  server:
+    host: jupyterhub-proxy-public
+    port: 80
+    context: notebook
+    landingPath: /hub/spawn
+jupyter:
+  enabled: false
+  image:
+    repository: madgik/jupyter
+    tag: dev1
+  service:
+    host: jupyter-service
+    port: 8888
+    nodePort: 30888
+  auth:
+    token: easytoken
+  notebook:
+    context: jupyter
+  backend:
+    host: platform-backend-service
+    port: 8080
+    context: services
+  persistence:
+    notebooks:
+      localPath: /opt/mip-deployment/notebooks
+      size: 1Gi
 platform-backend:
   image:
     repository: hbpmip/platform-backend

@@ -181,6 +181,23 @@ For a more in-depth guide on deploying Exaflow, please refer to the documentatio
     /opt/mip-deployment/kubernetes
   ```
 
+### Optional Jupyter Integration
+This chart now includes notebook routing and an optional Jupyter single-user deployment:
+
+* `values.yaml`:
+  * set `notebook.enabled: true` to expose `/notebook` through `platform-ui`
+  * set `jupyter.enabled: true` to deploy the `jupyter` pod/service from this chart
+* Install JupyterHub in the same namespace (if you use hub-based authentication) with the provided values:
+  ```
+  microk8s helm3 repo add jupyterhub https://jupyterhub.github.io/helm-chart
+  microk8s helm3 repo update
+  microk8s helm3 upgrade --install jupyterhub jupyterhub/jupyterhub \
+    -n <NAMESPACE> \
+    --create-namespace \
+    -f /opt/mip-deployment/kubernetes/jupyterhub.values.yaml
+  ```
+* Adjust `jupyterhub.values.yaml` secrets/callback host before deployment.
+
 # MicroK8s Automatic Recoverability
 
 ## Overview

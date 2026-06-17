@@ -7,6 +7,7 @@
 {{- $guide := default (dict) $platformUi.guide -}}
 {{- $guideCovariate := default "Sex" $guide.covariate -}}
 {{- $guideVariable := default "Age" $guide.variable -}}
+{{- $notebookEnabled := default false .Values.notebook.enabled -}}
 {{- $ingressEnabled := default true $ingress.enabled -}}
 {{- $publicHost := default "" .Values.global.publicHost -}}
 ---
@@ -41,11 +42,21 @@ spec:
               value: {{ $guideCovariate | quote }}
             - name: GUIDE_VARIABLE
               value: {{ $guideVariable | quote }}
+            - name: NOTEBOOK_ENABLED
+              value: {{ ternary "1" "0" $notebookEnabled | quote }}
 {{- if $backendHost }}
             - name: PLATFORM_BACKEND_SERVER
               value: {{ printf "%s:%v" $backendHost $backendPort | quote }}
             - name: PLATFORM_BACKEND_CONTEXT
               value: {{ $backendContext | quote }}
+{{- end }}
+{{- if $notebookEnabled }}
+            - name: JUPYTER_SERVER
+              value: {{ printf "%s:%v" (default "jupyterhub-proxy-public" .Values.notebook.server.host) (default 80 .Values.notebook.server.port) | quote }}
+            - name: JUPYTER_CONTEXT
+              value: {{ default "notebook" .Values.notebook.server.context | quote }}
+            - name: JUPYTER_LANDING_PATH
+              value: {{ default "/hub/spawn" .Values.notebook.server.landingPath | quote }}
 {{- end }}
 ---
 apiVersion: v1

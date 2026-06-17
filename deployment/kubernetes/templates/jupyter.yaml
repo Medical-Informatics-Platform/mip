@@ -1,0 +1,133 @@
+{{- if .Values.jupyter.enabled }}
+{{- $namespace := include "mip.namespace" . }}
+{{- if not .Values.cluster.managed }}
+---
+# 1) jupyter notebooks on hostPath
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jupyter-notebooks-vol0
+  labels:
+    storage: jupyter-notebooks-storage0
+spec:
+  capacity:
+    storage: {{ .Values.jupyter.persistence.notebooks.size }}
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: {{ .Values.cluster.storageClasses.local }}
+  hostPath:
+    path: {{ .Values.jupyter.persistence.notebooks.localPath }}
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: master
+              operator: In
+              values:
+                - "true"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jupyter-notebooks-claim0
+  namespace: {{ $namespace }}
+  labels:
+    storage: jupyter-notebooks-storage0
+spec:
+  selector:
+    matchLabels:
+      storage: jupyter-notebooks-storage0
+  storageClassName: {{ .Values.cluster.storageClasses.local }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.jupyter.persistence.notebooks.size }}
+{{- else }}
+---
+# managed cluster: dynamic PVC for jupyter notebooks
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jupyter-notebooks-claim0
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false,Prune=false
+spec:
+  storageClassName: {{ .Values.cluster.storageClasses.managed }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.jupyter.persistence.notebooks.size }}
+{{- end }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyter
+  namespace: {{ $namespace }}
+  labels:
+    app: jupyter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jupyter
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: jupyter
+    spec:
+      {{ if not .Values.cluster.managed }}
+      nodeSelector:
+        master: "true"
+      {{ end }}
+      hostname: jupyter
+      volumes:
+      - name: jupyter-notebooks
+        persistentVolumeClaim:
+          claimName: jupyter-notebooks-claim0
+      containers:
+      - name: jupyter
+        image: "{{ .Values.jupyter.image.repository }}:{{ .Values.jupyter.image.tag }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ default 8888 .Values.jupyter.service.port }}
+        env:
+        - name: PLATFORM_BACKEND_URL
+          value: {{ printf "http://%s:%v/%s" (default "platform-backend-service" .Values.jupyter.backend.host) (default 8080 .Values.jupyter.backend.port) (default "services" .Values.jupyter.backend.context) | quote }}
+        - name: JUPYTER_TOKEN
+          value: {{ default "easytoken" .Values.jupyter.auth.token | quote }}
+        - name: JUPYTER_BASE_URL
+          value: {{ printf "/%s" (trimPrefix "/" (default "jupyter" .Values.jupyter.notebook.context)) | quote }}
+        volumeMounts:
+        - name: jupyter-notebooks
+          mountPath: /home/jovyan/work
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jupyter-service
+  namespace: {{ $namespace }}
+spec:
+  selector:
+    app: jupyter
+  ports:
+    - protocol: TCP
+      port: {{ default 8888 .Values.jupyter.service.port }}
+      targetPort: {{ default 8888 .Values.jupyter.service.port }}
+  {{- if not .Values.cluster.managed }}
+  type: NodePort
+  {{- if .Values.jupyter.service.nodePort }}
+  nodePort: {{ .Values.jupyter.service.nodePort }}
+  {{- end }}
+  {{- end }}
+{{- end }}

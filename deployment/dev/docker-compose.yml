@@ -124,6 +124,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: test
       POSTGRES_DB: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
       PLATFORM_DB_NAME: portal
       PLATFORM_DB_USER: portal
       PLATFORM_DB_PASSWORD: portalpwd
@@ -176,11 +177,45 @@ services:
     image: hbpmip/platform-ui:${PLATFORM_UI}
     ports:
       - "80:80"
+    volumes:
+      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
     environment:
       PLATFORM_BACKEND_SERVER: platform-backend:8080
       PLATFORM_BACKEND_CONTEXT: services
-      NOTEBOOK_ENABLED: 0
+      NOTEBOOK_ENABLED: "${NOTEBOOK_ENABLED:-0}"
+      JUPYTER_SERVER: "${JUPYTER_SERVER:-jupyterhub:8000}"
+      JUPYTER_CONTEXT: "${JUPYTER_CONTEXT:-notebook}"
+      JUPYTER_LANDING_PATH: "${JUPYTER_LANDING_PATH:-/hub/spawn}"
+      FRONTEND_VERSION: "${PLATFORM_UI}"
+      BACKEND_VERSION: "${PLATFORM_BACKEND}"
+      EXAFLOW_VERSION: "${EXAFLOW}"
       MIP_VERSION: "${MIP}"
+    depends_on:
+      - platform-backend
+    restart: unless-stopped
+
+  jupyterhub:
+    profiles:
+      - notebook
+    build:
+      context: ../../../mip-jupyter
+      dockerfile: Dockerfile.jupyterhub
+    ports:
+      - "8000:8000"
+    environment:
+      AUTHENTICATION: "${AUTHENTICATION}"
+      KEYCLOAK_AUTH_URL: "${KEYCLOAK_AUTH_URL}"
+      KEYCLOAK_REALM: "${KEYCLOAK_REALM}"
+      KEYCLOAK_CLIENT_ID: "${KEYCLOAK_CLIENT_ID}"
+      KEYCLOAK_CLIENT_SECRET: "${KEYCLOAK_CLIENT_SECRET}"
+      JH_OAUTH_CALLBACK_URL: "${JH_OAUTH_CALLBACK_URL:-http://localhost/notebook/hub/oauth_callback}"
+      JH_FRAME_ANCESTORS: "${JH_FRAME_ANCESTORS:-'self' http://localhost}"
+      JH_DUMMY_PASSWORD: "${JH_DUMMY_PASSWORD:-}"
+      PORTAL_TOKEN: "${PORTAL_TOKEN:-}"
+    volumes:
+      - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
+      - ./notebooks:/home/jovyan/work
+    command: jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
     depends_on:
       - platform-backend
     restart: unless-stopped

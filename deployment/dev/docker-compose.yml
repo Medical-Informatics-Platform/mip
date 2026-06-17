@@ -174,9 +174,11 @@ services:
     restart: unless-stopped
 
   platform_ui:
+    profiles:
+      - ui
     image: hbpmip/platform-ui:${PLATFORM_UI}
     ports:
-      - "80:80"
+      - "${PLATFORM_UI_HOST_PORT:-80}:80"
     volumes:
       - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
     environment:
@@ -211,7 +213,7 @@ services:
       JH_OAUTH_CALLBACK_URL: "${JH_OAUTH_CALLBACK_URL:-http://localhost/notebook/hub/oauth_callback}"
       JH_FRAME_ANCESTORS: "${JH_FRAME_ANCESTORS:-'self' http://localhost}"
       JH_DUMMY_PASSWORD: "${JH_DUMMY_PASSWORD:-}"
-      PORTAL_TOKEN: "${PORTAL_TOKEN:-}"
+      MIP_TOKEN: "${MIP_TOKEN:-}"
     volumes:
       - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
       - ./notebooks:/home/jovyan/work

@@ -50,7 +50,7 @@ else:
     configure_dummy_auth(c, password=os.environ.get("JH_DUMMY_PASSWORD", ""))
 
 
-async def _inject_portal_token(spawner):
+async def _inject_mip_token(spawner):
     # Refresh Welcome notebook from the image on every spawn.
     src = "/opt/portal-notebooks/Welcome.ipynb"
     dst_dir = "/home/jovyan/work"
@@ -65,19 +65,19 @@ async def _inject_portal_token(spawner):
     )
 
     if not AUTHENTICATION_ENABLED:
-        static_token = os.environ.get("PORTAL_TOKEN")
+        static_token = os.environ.get("MIP_TOKEN")
         if static_token:
-            spawner.environment["PORTAL_TOKEN"] = static_token
+            spawner.environment["MIP_TOKEN"] = static_token
         return
 
     # Inject bearer token for platform-backend API calls.
     auth_state = await spawner.user.get_auth_state()
     token = extract_access_token(auth_state)
     if not token:
-        spawner.log.warning("No access_token in auth_state; PORTAL_TOKEN will not be set")
+        spawner.log.warning("No access_token in auth_state; MIP_TOKEN will not be set")
         return
 
-    spawner.environment["PORTAL_TOKEN"] = token
+    spawner.environment["MIP_TOKEN"] = token
 
 
 # Keep dev simple: one-process local spawner.
@@ -92,7 +92,7 @@ c.Spawner.args = [
     # Hub CSP is not enough; single-user server must also allow iframe embedding.
     build_singleuser_csp_arg(FRAME_ANCESTORS),
 ]
-c.Spawner.pre_spawn_hook = _inject_portal_token
+c.Spawner.pre_spawn_hook = _inject_mip_token
 
-# Exposed at /notebook/hub/api/portal-token
+# Exposed at /notebook/hub/api/platform-token
 install_platform_token_handler(c, authentication_enabled=AUTHENTICATION_ENABLED)

@@ -3,8 +3,8 @@
 #
 # Goal: per-user authentication.
 # - User logs in to JupyterHub via Keycloak (OIDC).
-# - JupyterHub passes the user's access token into the single-user server as PORTAL_TOKEN.
-# - mip automatically picks PORTAL_TOKEN up.
+# - JupyterHub passes the user's access token into the single-user server as MIP_TOKEN.
+# - mip automatically picks MIP_TOKEN up.
 #
 # Notes:
 # - Do NOT commit real secrets here. Provide them via helm --set, an external values file, or a Kubernetes Secret.
@@ -68,8 +68,8 @@ hub:
 
   extraConfig:
     # Pass the user's Keycloak access token to the single-user server.
-    # The python client reads it from PORTAL_TOKEN.
-    10-portal-token.py: |
+    # The python client reads it from MIP_TOKEN.
+    10-mip-token.py: |
       import os
 
       # The OAuth callback URL must match the public origin (ingress host) so redirects
@@ -90,10 +90,10 @@ hub:
           f'--ServerApp.tornado_settings={{"headers":{{"Content-Security-Policy":"frame-ancestors {_fa}"}}}}',
       ]
 
-      async def _inject_portal_token(spawner):
+      async def _inject_mip_token(spawner):
           auth_state = await spawner.user.get_auth_state()
           if not auth_state:
-              spawner.log.warning("No auth_state available; PORTAL_TOKEN will not be set")
+              spawner.log.warning("No auth_state available; MIP_TOKEN will not be set")
               return
 
           token = (
@@ -102,7 +102,7 @@ hub:
           )
 
           if not token:
-              spawner.log.warning("No access_token found in auth_state; PORTAL_TOKEN will not be set")
+              spawner.log.warning("No access_token found in auth_state; MIP_TOKEN will not be set")
               return
 
           # Platform Backend base URL from inside the cluster.
@@ -110,16 +110,16 @@ hub:
               "PLATFORM_BACKEND_URL",
               os.environ.get("PLATFORM_BACKEND_URL", "http://platform-backend-service:8080/services"),
           )
-          spawner.environment["PORTAL_TOKEN"] = token
+          spawner.environment["MIP_TOKEN"] = token
 
-      c.Spawner.pre_spawn_hook = _inject_portal_token
+      c.Spawner.pre_spawn_hook = _inject_mip_token
 
       # Hub-side endpoint for single-user servers to fetch a fresh access token.
       # Called by mip when the injected token expires.
       from jupyterhub.apihandlers.base import APIHandler
       from tornado import web
 
-      class PortalTokenHandler(APIHandler):
+      class PlatformTokenHandler(APIHandler):
           @web.authenticated
           async def get(self):
               user = self.current_user
@@ -139,7 +139,7 @@ hub:
 
               self.finish({'access_token': token})
 
-      c.JupyterHub.extra_handlers = [(r'/api/portal-token', PortalTokenHandler)]
+      c.JupyterHub.extra_handlers = [(r'/api/platform-token', PlatformTokenHandler)]
 
 proxy:
   service:

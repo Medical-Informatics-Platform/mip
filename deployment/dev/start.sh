@@ -7,6 +7,8 @@ set +a
 
 compose_args=()
 notebook_enabled=0
+ui_enabled=0
+
 case "${NOTEBOOK_ENABLED:-0}" in
   1|true|TRUE|yes|YES)
     notebook_enabled=1
@@ -15,8 +17,26 @@ case "${NOTEBOOK_ENABLED:-0}" in
     ;;
   *)
     echo "Notebook mode disabled: starting core stack only."
+    echo "For local JupyterLab against this stack: ./start-jupyter-local.sh"
     ;;
 esac
+
+case "${PLATFORM_UI_ENABLED:-1}" in
+  1|true|TRUE|yes|YES)
+    ui_enabled=1
+    ;;
+esac
+
+if [ "${notebook_enabled}" = "1" ]; then
+  ui_enabled=1
+fi
+
+if [ "${ui_enabled}" = "1" ]; then
+  compose_args+=(--profile ui)
+  echo "Platform UI enabled (host port ${PLATFORM_UI_HOST_PORT:-80})."
+else
+  echo "Platform UI disabled: backend-only stack for local JupyterLab."
+fi
 
 docker compose "${compose_args[@]}" down -v --remove-orphans
 if [ "${notebook_enabled}" = "1" ]; then
@@ -46,7 +66,12 @@ for attempt in $(seq 1 "${max_attempts}"); do
     && printf '%s' "${response}" | grep -q '"code"[[:space:]]*:[[:space:]]*"tbi"'
   then
     echo "Data models check passed: expected codes are available."
-    echo "You can see the MIP at 172.17.0.1"
+    if [ "${ui_enabled}" = "1" ]; then
+      echo "You can see the MIP at http://172.17.0.1:${PLATFORM_UI_HOST_PORT:-80}"
+    else
+      echo "Backend API: http://localhost:8080/services"
+      echo "For local JupyterLab: ./start-jupyter-local.sh"
+    fi
     if [ "${notebook_enabled}" = "1" ]; then
       echo "Notebook route is available at http://172.17.0.1/notebook"
       echo "Direct JupyterHub URL: http://172.17.0.1:8000/notebook"

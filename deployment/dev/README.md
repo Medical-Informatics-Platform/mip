@@ -20,9 +20,9 @@
 
 1. Clone the repo
 
-2. Go to the dev deployment folder:
+2. Go to the dev deployment folder (from the `mip` repo root, or `mip/deployment/dev/` inside the umbrella workspace):
     ```
-    cd mip/deployment/dev/
+    cd deployment/dev/
     ``` 
 
 3. Copy the .env file:
@@ -45,6 +45,39 @@
     ```
     ./stop.sh
     ```
+
+## Local JupyterLab development (recommended for mip-jupyter work)
+
+Use this workflow when iterating on `mip-jupyter/python-client` without rebuilding the JupyterHub Docker image.
+
+**Prerequisites:** Python 3.10+, Docker stack running with `NOTEBOOK_ENABLED=0`.
+
+**Recommended `.env` for this workflow:**
+```
+NOTEBOOK_ENABLED=0
+PLATFORM_UI_ENABLED=0
+```
+`PLATFORM_UI_ENABLED=0` skips the platform-ui container (no port 80 needed). The UI is not required for host JupyterLab.
+
+1. Start the core stack (terminal 1):
+   ```
+   ./start.sh
+   ```
+2. Start host JupyterLab (terminal 2):
+   ```
+   ./start-jupyter-local.sh
+   ```
+3. Open `http://localhost:8888/lab/tree/Welcome.ipynb`
+
+The script creates `.venv-jupyter/`, installs JupyterLab, and installs the `mip` client in editable mode from `mip-jupyter/python-client`. Client code changes apply after a kernel restart—no Docker rebuild.
+
+**Authentication:**
+* `AUTHENTICATION=0`: `MIP_TOKEN` in `.env` is optional.
+* `AUTHENTICATION=1`: set `MIP_TOKEN` in `.env`. JupyterHub token refresh is not available in this mode.
+
+**Optional `.env` overrides:** `JUPYTER_PORT`, `NOTEBOOK_DIR`, `PLATFORM_BACKEND_URL` (see `.env.example`).
+
+**Port 80 already in use?** Either set `PLATFORM_UI_ENABLED=0` (backend-only, fine for local JupyterLab) or set `PLATFORM_UI_HOST_PORT=8081` and open `http://localhost:8081`.
 
 ## Notebook mode
 To run the stack with notebook support behind `/notebook`:

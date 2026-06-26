@@ -34,14 +34,17 @@
     ```
     ./start.sh
     ```
-    The script waits for `http://172.17.0.1:8080/services/data-models` and verifies 4 data models are loaded.
+    The script rebuilds and starts the MIP stack plus direct JupyterLab, then checks that the `dementia` data model is available.
 
-4. To test if the MIP stack is properly setup run the 'test.sh':
+    Open:
     ```
-    ./test.sh 
+    http://localhost
+    http://localhost:8888/lab/tree/workspace/examples/feres_analysis.ipynb?token=dev
     ```
-   
-5. To stop the MIP stack run the 'stop.sh' script to stop all the containers:
+
+    JupyterLab uses the compose backend URL `http://platform-backend:8080/services` inside Docker.
+
+4. To stop the MIP stack run the 'stop.sh' script to stop all the containers:
     ```
     ./stop.sh
     ```

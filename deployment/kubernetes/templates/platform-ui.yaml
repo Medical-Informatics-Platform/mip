@@ -9,6 +9,10 @@
 {{- $guideVariable := default "Age" $guide.variable -}}
 {{- $ingressEnabled := default true $ingress.enabled -}}
 {{- $publicHost := default "" .Values.global.publicHost -}}
+{{- $notebook := default (dict) $platformUi.notebook -}}
+{{- $notebookEnabled := default false $notebook.enabled -}}
+{{- $jupyterContext := default "notebook" $notebook.context -}}
+{{- $jupyterServer := default "jupyterhub:80" $notebook.server -}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -47,6 +51,12 @@ spec:
             - name: PLATFORM_BACKEND_CONTEXT
               value: {{ $backendContext | quote }}
 {{- end }}
+            - name: NOTEBOOK_ENABLED
+              value: {{ ternary "1" "0" $notebookEnabled | quote }}
+            - name: JUPYTER_SERVER
+              value: {{ $jupyterServer | quote }}
+            - name: JUPYTER_CONTEXT
+              value: {{ $jupyterContext | quote }}
 ---
 apiVersion: v1
 kind: Service

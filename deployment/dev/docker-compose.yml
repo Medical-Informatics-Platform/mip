@@ -160,7 +160,7 @@ services:
       ### Exaflow ###
       ALGORITHM_UPDATE_INTERVAL: 30     # seconds
       EXAFLOW_URL: http://exaflow_controller:5000
-      PLATFORM_UI_BASE_URL: "${PLATFORM_UI_BASE_URL}"
+      PLATFORM_UI_BASE_URL: "http://localhost"
       ### Keycloak (external) ###
       AUTHENTICATION: "${AUTHENTICATION}"
       KEYCLOAK_AUTH_URL: "${KEYCLOAK_AUTH_URL}"
@@ -181,6 +181,21 @@ services:
       PLATFORM_BACKEND_CONTEXT: services
       NOTEBOOK_ENABLED: 0
       MIP_VERSION: "${MIP}"
+    depends_on:
+      - platform-backend
+    restart: unless-stopped
+
+  mip_jupyter:
+    image: hbpmip/mip-jupyter:0.0.1_candidate
+    ports:
+      - "8888:8888"
+    environment:
+      PLATFORM_BACKEND_URL: http://platform-backend:8080/services
+      MIP_TOKEN: ""
+      PLATFORM_TOKEN: ""
+      JUPYTER_TOKEN: dev
+      MIP_NOTEBOOK: workspace/examples/feres_analysis.ipynb
+      JUPYTER_ENABLE_LAB: "yes"
     depends_on:
       - platform-backend
     restart: unless-stopped

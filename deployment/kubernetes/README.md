@@ -56,6 +56,8 @@ Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there ar
 * `cluster`: storage classes and whether the chart should use the managed storage class or the microk8s local storage class.
 * `global`: shared public hostname used by the ingress and backend redirects.
 * `platform-ui`, `platform-backend`, `platformBackendDatabase`: container images and component specific options (including the shared ingress/tls settings and PVC sizes).
+* `platform-ui.notebook`: enables the `/notebook` iframe route in platform-ui and wires nginx to the in-cluster JupyterHub service.
+* `jupyterhub`: JupyterHub and single-user Jupyter image tags, ingress, storage, crypt key, token, and notebook resource requests/limits. Notebook traffic for the portal iframe should use platform-ui's `/notebook/` proxy; keep `jupyterhub.ingress.enabled: false` unless you need a separate admin-only host.
 * `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`).
 
 Copy `values.yaml` to a new file (for example `my-values.yaml`) and edit it in-place. A few important knobs:
@@ -69,13 +71,35 @@ platform-ui:
     host: platform-backend-service
     port: 8080
     context: services
+  notebook:
+    enabled: true
+    server: jupyterhub:80
+    context: notebook
   ingress:
     tlsSecretName: platform-ui-tls
 
 keycloak:
   enabled: true
   host: iam.example.org
+
+jupyterhub:
+  cryptKey: ""
+  image:
+    tag: 0.0.1_candidate
+  ingress:
+    enabled: false
+  singleuser:
+    image:
+      tag: 0.0.1_candidate
 ```
+
+Set `jupyterhub.cryptKey` to a stable value, for example `openssl rand -hex 32`, if you need deterministic auth-state encryption across fresh installs. Existing `jupyterhub-crypt` secrets are reused during upgrades.
+
+Register a Keycloak redirect URI for the Hub OAuth client:
+
+`https://<global.publicHost>/notebook/hub/oauth_callback`
+
+For Kubernetes, make sure `hbpmip/mip-jupyterhub:0.0.1_candidate` and `hbpmip/mip-jupyter:0.0.1_candidate` are pushed to the configured registry or loaded onto every node that may run the pods.
 
 The reachability diagram from the legacy profiles is still valid as a reference for deciding the correct public URL:
 ![MIP Reachability Scheme](../docs/MIP_Configuration.png)

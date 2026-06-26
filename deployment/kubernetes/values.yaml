@@ -23,6 +23,10 @@ platform-ui:
     host: platform-backend-service
     port: 8080
     context: services
+  notebook:
+    enabled: true
+    server: jupyterhub:80
+    context: notebook
   guide:
     covariate: Sex
     variable: Age
@@ -50,3 +54,13 @@ platformBackendDatabase:
 keycloak:
   enabled: true
   host: iam.ebrains.eu
+  
+jupyterhub:
+  cryptKey: ""
+  image:
+    tag: 0.0.1_candidate
+  ingress:
+    enabled: false
+  singleuser:
+    image:
+      tag: 0.0.1_candidate

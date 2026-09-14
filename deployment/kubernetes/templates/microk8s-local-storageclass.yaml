@@ -1,5 +1,6 @@
 {{- if not .Values.cluster.managed }}
 {{- $localStorageClass := .Values.cluster.storageClasses.local -}}
+{{- if not (lookup "storage.k8s.io/v1" "StorageClass" "" $localStorageClass) }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -8,4 +9,5 @@ metadata:
     app: {{ $localStorageClass }}
 provisioner: k8s.io/microk8s-hostpath
 volumeBindingMode: WaitForFirstConsumer
+{{- end }}
 {{- end }}

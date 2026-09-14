@@ -1,5 +1,7 @@
 # Development deployment
 
+Local Docker Compose runs the MIP UI/backend/engine plus a **standalone JupyterLab** container. Kubernetes notebooks are different: JupyterHub behind platform-ui `/notebook/` with Keycloak. Compose cannot run that Hub path (KubeSpawner needs Kubernetes).
+
 ## Requirements
 ### Hardware
 * 40 GB HDD
@@ -8,13 +10,8 @@
 
 ### Software
 * Ubuntu Server (minimal installation, without GUI)
-
-### Prerequisites
-
-1. Install [python3.10](https://www.python.org/downloads/ "python3.10")
-
-2. Install docker-compose
-
+* Docker Compose
+* Python 3.10 or newer, only if you run `./test.sh`
 
 ## Instructions to deploy:
 
@@ -22,26 +19,34 @@
 
 2. Go to the dev deployment folder:
     ```
-    cd mip/deployment/dev/
-    ``` 
+    cd deployment/dev/
+    ```
 
 3. Copy the .env file:
     ```
     cp .env.example .env
     ```
 
-3. To start the MIP stack run the 'start.sh' script to setup all the containers:
+4. To start the MIP stack run the `start.sh` script:
     ```
     ./start.sh
     ```
-    The script waits for `http://172.17.0.1:8080/services/data-models` and verifies 4 data models are loaded.
+    The script pulls images, starts the stack plus JupyterLab, then checks that the four data models and JupyterLab are available.
 
-4. To test if the MIP stack is properly setup run the 'test.sh':
+    Open:
     ```
-    ./test.sh 
+    http://localhost
+    http://localhost:8888/lab/tree/examples/feres_analysis.ipynb?token=dev
     ```
-   
-5. To stop the MIP stack run the 'stop.sh' script to stop all the containers:
+
+    JupyterLab uses the compose backend URL `http://platform-backend:8080/services` inside Docker. The notebook route in the UI stays disabled (`NOTEBOOK_ENABLED=0`) because that iframe talks to JupyterHub, not this Lab container.
+
+5. Optional smoke tests against the running stack:
+    ```
+    ./test.sh
+    ```
+
+6. To stop the MIP stack run the `stop.sh` script:
     ```
     ./stop.sh
     ```

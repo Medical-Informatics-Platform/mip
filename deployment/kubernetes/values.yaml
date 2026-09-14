@@ -1,10 +1,10 @@
 cluster:
-  managed: true
+  managed: false
   storageClasses:
-    local: k8s-local-storage
+    local: microk8s-hostpath
     managed: ceph-corbo-cephfs
 global:
-  publicHost: hbpmip.link
+  publicHost: mip.dt4h.athenarc.gr
 engines:
   exaflow:
     url: "http://exaflow-controller-service:5000"
@@ -13,23 +13,27 @@ mip:
 platform-ui:
   image:
     repository: hbpmip/platform-ui
-    tag: 1.2.0
+    tag: 2.0.0_120926
   ingress:
     enabled: true
-    className: haproxy-public
+    className: public
     certManagerClusterIssuer: letsencrypt-public
     tlsSecretName: platform-ui-tls
   backend:
     host: platform-backend-service
     port: 8080
     context: services
+  notebook:
+    enabled: true
+    server: jupyterhub:80
+    context: notebook
   guide:
     covariate: Sex
     variable: Age
 platform-backend:
   image:
     repository: hbpmip/platform-backend
-    tag: 9.3.0
+    tag: dt4h_final
   config:
     logLevel: INFO
     logLevelFramework: INFO
@@ -49,4 +53,43 @@ platformBackendDatabase:
 
 keycloak:
   enabled: true
-  host: iam.ebrains.eu
+  host: inb.bsc.es
+  protocol: https
+  realm: datatools4heart
+
+jupyterhub:
+  enabled: true
+  # Required on first install. Reused from jupyterhub-crypt on helm upgrade if left empty.
+  cryptKey: ""
+  image:
+    repository: hbpmip/mip-jupyterhub
+    tag: 0.0.1_candidate
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistence:
+    size: 1Gi
+  ingress:
+    enabled: false
+    className: public
+    tlsSecretName: jupyterhub-tls
+    host: ""
+  singleuser:
+    image:
+      repository: hbpmip/mip-jupyter
+      tag: 0.0.1_candidate
+      pullPolicy: Always
+    token: ""
+    storageCapacity: 2Gi
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi

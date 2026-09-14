@@ -202,6 +202,8 @@ spec:
               value: {{ default "" .Values.engines.exaflow.url | quote }}
             - name: PLATFORM_UI_BASE_URL
               value: {{ $platformUiUrl | quote }}
+            - name: MIP_VERSION
+              value: {{ default "" .Values.mip.version | quote }}
             - name: KEYCLOAK_AUTH_URL
               value: {{ $keycloakAuthUrl | quote }}
             - name: KEYCLOAK_REALM

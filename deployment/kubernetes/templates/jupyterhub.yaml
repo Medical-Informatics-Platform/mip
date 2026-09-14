@@ -1,0 +1,288 @@
+{{- $namespace := default "default" .Release.Namespace -}}
+{{- $jupyterHub := default (dict) (index .Values "jupyterhub") -}}
+{{- $platformUi := index .Values "platform-ui" -}}
+{{- $notebook := default (dict) $platformUi.notebook -}}
+{{- $notebookEnabled := false -}}
+{{- if hasKey $notebook "enabled" -}}
+{{- $notebookEnabled = $notebook.enabled -}}
+{{- end -}}
+{{- $hubEnabled := $notebookEnabled -}}
+{{- if hasKey $jupyterHub "enabled" -}}
+{{- $hubEnabled = $jupyterHub.enabled -}}
+{{- end -}}
+{{- if $hubEnabled -}}
+{{- $hubImageSpec := default (dict) $jupyterHub.image -}}
+{{- $singleuser := default (dict) $jupyterHub.singleuser -}}
+{{- $singleuserImageSpec := default (dict) $singleuser.image -}}
+{{- $hubRepo := required "jupyterhub.image.repository is required" $hubImageSpec.repository -}}
+{{- $hubTag := required "jupyterhub.image.tag is required" $hubImageSpec.tag -}}
+{{- $singleuserRepo := required "jupyterhub.singleuser.image.repository is required" $singleuserImageSpec.repository -}}
+{{- $singleuserTag := required "jupyterhub.singleuser.image.tag is required" $singleuserImageSpec.tag -}}
+{{- $hubImage := printf "%s:%s" $hubRepo $hubTag -}}
+{{- $singleuserImage := printf "%s:%s" $singleuserRepo $singleuserTag -}}
+{{- $storageClass := default (ternary .Values.cluster.storageClasses.managed .Values.cluster.storageClasses.local .Values.cluster.managed) $singleuser.storageClass -}}
+{{- $keycloakProtocol := default "https" .Values.keycloak.protocol -}}
+{{- $keycloakHost := default "" .Values.keycloak.host -}}
+{{- $keycloakRealm := default "MIP" .Values.keycloak.realm -}}
+{{- $keycloakAuthUrl := "" -}}
+{{- if and $keycloakProtocol $keycloakHost -}}
+{{- $keycloakAuthUrl = printf "%s://%s/auth/" $keycloakProtocol $keycloakHost -}}
+{{- end -}}
+{{- $jupyterBasePath := default "notebook" $notebook.context -}}
+{{- $publicHost := .Values.global.publicHost -}}
+{{- $existingCrypt := lookup "v1" "Secret" $namespace "jupyterhub-crypt" -}}
+{{- $cryptKey := default "" $jupyterHub.cryptKey -}}
+{{- if and (not $cryptKey) $existingCrypt (hasKey $existingCrypt.data "crypt-key") -}}
+{{- $cryptKey = index $existingCrypt.data "crypt-key" | b64dec -}}
+{{- end -}}
+{{- $cryptKey = required "jupyterhub.cryptKey is required on install (openssl rand -hex 32). Existing jupyterhub-crypt secrets are reused on helm upgrade when cryptKey is left empty." $cryptKey -}}
+{{- $hubResources := default (dict) $jupyterHub.resources -}}
+{{- $hubRequests := default (dict) $hubResources.requests -}}
+{{- $hubLimits := default (dict) $hubResources.limits -}}
+{{- $singleuserResources := default (dict) $singleuser.resources -}}
+{{- $singleuserRequests := default (dict) $singleuserResources.requests -}}
+{{- $singleuserLimits := default (dict) $singleuserResources.limits -}}
+{{- $hubIngress := default (dict) $jupyterHub.ingress -}}
+{{- $persistence := default (dict) $jupyterHub.persistence -}}
+{{- $healthPath := printf "/%s/hub/health" $jupyterBasePath -}}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jupyterhub-crypt
+  namespace: {{ $namespace }}
+type: Opaque
+stringData:
+  crypt-key: {{ $cryptKey | quote }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jupyterhub-claim0
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false,Prune=false
+spec:
+  storageClassName: {{ $storageClass }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ default "1Gi" $persistence.size }}
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jupyterhub
+  namespace: {{ $namespace }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jupyterhub
+  namespace: {{ $namespace }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "persistentvolumeclaims", "secrets", "services"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods/log", "pods/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jupyterhub
+  namespace: {{ $namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: jupyterhub
+    namespace: {{ $namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jupyterhub
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jupyterhub
+  namespace: {{ $namespace }}
+spec:
+  selector:
+    app: jupyterhub
+    component: hub
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+    - name: hub-api
+      protocol: TCP
+      port: 8081
+      targetPort: 8081
+
+{{- if $hubIngress.enabled }}
+{{- $ingressHost := default (printf "notebooks.%s" $publicHost) $hubIngress.host -}}
+{{- $ingressClass := default ($platformUi.ingress.className | default "haproxy-public") $hubIngress.className -}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jupyterhub
+  namespace: {{ $namespace }}
+  annotations:
+{{- if $hubIngress.certManagerClusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ $hubIngress.certManagerClusterIssuer | quote }}
+{{- end }}
+spec:
+  ingressClassName: {{ $ingressClass | quote }}
+{{- if and $hubIngress.tlsSecretName (not (empty $ingressHost)) }}
+  tls:
+    - hosts:
+        - {{ $ingressHost | quote }}
+      secretName: {{ $hubIngress.tlsSecretName }}
+{{- end }}
+  rules:
+    - host: {{ $ingressHost | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jupyterhub
+                port:
+                  number: 80
+{{- end }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyterhub
+  namespace: {{ $namespace }}
+  labels:
+    app: jupyterhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jupyterhub
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: jupyterhub
+        component: hub
+    spec:
+      serviceAccountName: jupyterhub
+{{- if not .Values.cluster.managed }}
+      nodeSelector:
+        master: "true"
+{{- end }}
+      volumes:
+        - name: jupyterhub-claim0
+          persistentVolumeClaim:
+            claimName: jupyterhub-claim0
+      containers:
+        - name: jupyterhub
+          image: {{ $hubImage | quote }}
+          imagePullPolicy: {{ default "Always" $hubImageSpec.pullPolicy | quote }}
+          ports:
+            - name: http
+              containerPort: 8000
+            - name: hub-api
+              containerPort: 8081
+          startupProbe:
+            httpGet:
+              path: {{ $healthPath | quote }}
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: {{ $healthPath | quote }}
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: {{ $healthPath | quote }}
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: {{ default "100m" $hubRequests.cpu | quote }}
+              memory: {{ default "256Mi" $hubRequests.memory | quote }}
+            limits:
+              cpu: {{ default "500m" $hubLimits.cpu | quote }}
+              memory: {{ default "512Mi" $hubLimits.memory | quote }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PLATFORM_BACKEND_URL
+              value: "http://platform-backend-service:8080/services"
+            - name: JUPYTER_SINGLEUSER_IMAGE
+              value: {{ $singleuserImage | quote }}
+            - name: JUPYTER_SINGLEUSER_TOKEN
+              value: {{ default "" $singleuser.token | quote }}
+            - name: JUPYTER_IMAGE_PULL_POLICY
+              value: {{ default "Always" $singleuserImageSpec.pullPolicy | quote }}
+            - name: JUPYTER_STORAGE_CLASS
+              value: {{ $storageClass | quote }}
+            - name: JUPYTER_STORAGE_CAPACITY
+              value: {{ default "2Gi" $singleuser.storageCapacity | quote }}
+            - name: JUPYTER_CPU_LIMIT
+              value: {{ default "1" $singleuserLimits.cpu | quote }}
+            - name: JUPYTER_MEM_LIMIT
+              value: {{ default "1Gi" $singleuserLimits.memory | quote }}
+            - name: JUPYTER_CPU_GUARANTEE
+              value: {{ default "500m" $singleuserRequests.cpu | quote }}
+            - name: JUPYTER_MEM_GUARANTEE
+              value: {{ default "512Mi" $singleuserRequests.memory | quote }}
+            - name: JUPYTERHUB_BASE_PATH
+              value: {{ printf "/%s/" $jupyterBasePath | quote }}
+            - name: JUPYTERHUB_LOGOUT_REDIRECT_URL
+              value: {{ printf "https://%s" $publicHost | quote }}
+            - name: JUPYTERHUB_COOKIE_SECURE
+              value: "true"
+            - name: KEYCLOAK_AUTH_URL
+              value: {{ $keycloakAuthUrl | quote }}
+            - name: KEYCLOAK_REALM
+              value: {{ $keycloakRealm | quote }}
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-credentials
+                  key: client-id
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-credentials
+                  key: client-secret
+            - name: JUPYTERHUB_CRYPT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: jupyterhub-crypt
+                  key: crypt-key
+          volumeMounts:
+            - name: jupyterhub-claim0
+              mountPath: /srv/jupyterhub
+{{- end }}

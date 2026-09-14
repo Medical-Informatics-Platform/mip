@@ -56,6 +56,8 @@ Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there ar
 * `cluster`: storage classes and whether the chart should use the managed storage class or the microk8s local storage class.
 * `global`: shared public hostname used by the ingress and backend redirects.
 * `platform-ui`, `platform-backend`, `platformBackendDatabase`: container images and component specific options (including the shared ingress/tls settings and PVC sizes).
+* `platform-ui.notebook`: enables the `/notebook` iframe route in platform-ui and wires nginx to the in-cluster JupyterHub service.
+* `jupyterhub`: JupyterHub and single-user images, Hub vs notebook resources, ingress, storage, crypt key, and spawn token. The Hub deploys when `jupyterhub.enabled` is set, otherwise it follows `platform-ui.notebook.enabled`. Notebook traffic for the portal iframe should use platform-ui's `/notebook/` proxy; keep `jupyterhub.ingress.enabled: false` unless you need a separate admin-only host with TLS.
 * `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`).
 
 Copy `values.yaml` to a new file (for example `my-values.yaml`) and edit it in-place. A few important knobs:
@@ -69,12 +71,53 @@ platform-ui:
     host: platform-backend-service
     port: 8080
     context: services
+  notebook:
+    enabled: true
+    server: jupyterhub:80
+    context: notebook
   ingress:
     tlsSecretName: platform-ui-tls
 
 keycloak:
   enabled: true
   host: iam.example.org
+
+jupyterhub:
+  enabled: true
+  cryptKey: "<openssl rand -hex 32>"
+  image:
+    repository: hbpmip/mip-jupyterhub
+    tag: 0.0.1_candidate
+    pullPolicy: Always
+  ingress:
+    enabled: false
+    className: haproxy-public
+    tlsSecretName: jupyterhub-tls
+  singleuser:
+    image:
+      repository: hbpmip/mip-jupyter
+      tag: 0.0.1_candidate
+      pullPolicy: Always
+```
+
+`jupyterhub.cryptKey` is required on first install and for Argo CD (`helm template` cannot reuse cluster secrets). Generate it with `openssl rand -hex 32` and keep it stable. On `helm upgrade` against a live cluster, an empty `cryptKey` reuses the existing `jupyterhub-crypt` secret.
+
+Setting `jupyterhub.enabled: false` omits the Hub and also forces `NOTEBOOK_ENABLED=0` in platform-ui, even if `platform-ui.notebook.enabled` is true. Keep the two flags in sync unless you want Hub without the portal iframe.
+
+Register a Keycloak redirect URI for the Hub OAuth client:
+
+`https://<global.publicHost>/notebook/hub/oauth_callback`
+
+`hbpmip/mip-jupyterhub:0.0.1_candidate` and `hbpmip/mip-jupyter:0.0.1_candidate` are pre-release tags. Pin released tags in `my-values.yaml` when they exist, and make sure the images are pushed to the configured registry or loaded onto every node that may run the pods.
+
+If you enable the optional Hub ingress, set `jupyterhub.ingress.tlsSecretName` (and `certManagerClusterIssuer` if you use cert-manager). The default host is `notebooks.<global.publicHost>`.
+
+Render check:
+
+```
+helm template mip ./deployment/kubernetes \
+  -f ./deployment/kubernetes/values.yaml \
+  --set jupyterhub.cryptKey=$(openssl rand -hex 32)
 ```
 
 The reachability diagram from the legacy profiles is still valid as a reference for deciding the correct public URL:
@@ -180,6 +223,26 @@ For a more in-depth guide on deploying Exaflow, please refer to the documentatio
     -f /opt/mip-deployment/kubernetes/my-values.yaml \
     /opt/mip-deployment/kubernetes
   ```
+
+### DT4H Athena (`dt4h_final`)
+
+This branch’s `values.yaml` is the Athena site overlay (`mip.dt4h.athenarc.gr`, ingress class `public`, Keycloak `inb.bsc.es` / `datatools4heart`, existing `microk8s-hostpath` PVCs). Do not helm from the stale `/opt/mip-deployment` tree.
+
+On the VM, after `git clone -b dt4h_final` (or `git pull`) of this repo:
+
+```
+CRYPT=$(openssl rand -hex 32)
+# Keep this value if jupyterhub-crypt is ever recreated.
+
+microk8s helm3 upgrade mip ~/mip/deployment/kubernetes \
+  --namespace default \
+  -f ~/mip/deployment/kubernetes/values.yaml \
+  --set jupyterhub.cryptKey=$CRYPT
+```
+
+Register `https://mip.dt4h.athenarc.gr/notebook/hub/oauth_callback` on the DT4H Keycloak client.
+
+Exaflow is a separate chart. On Athena, pull `master` and bump images with `--reuse-values --set exaflow_images.version=1.2.0_120926`. Use `--set localnodes=1` only while a worker node is NotReady.
 
 # MicroK8s Automatic Recoverability
 

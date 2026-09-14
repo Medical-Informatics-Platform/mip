@@ -1,9 +1,13 @@
-import pytest
 import json
+import os
+
 import requests
 
+BASE_URL = os.environ.get("MIP_DEV_URL", "http://localhost:8080")
+
+
 def test_get_pathologies_request():
-    url = "http://172.17.0.1:8080/services/data-models"
+    url = f"{BASE_URL}/services/data-models"
     headers = {"Content-type": "application/json", "Accept": "application/json"}
     response = requests.get(url, headers=headers)
     assert response.status_code == 200

@@ -185,6 +185,10 @@ spec:
               value: {{ $jupyterHub.singleuser.resources.requests.memory | quote }}
             - name: JUPYTERHUB_LOGOUT_REDIRECT_URL
               value: {{ printf "https://%s" $publicHost | quote }}
+            # Read by oauthenticator. Without it the hub derives the callback from
+            # the request, which is http:// behind platform-ui nginx.
+            - name: OAUTH_CALLBACK_URL
+              value: {{ printf "https://%s/notebook/hub/oauth_callback" $publicHost | quote }}
             - name: KEYCLOAK_AUTH_URL
               value: {{ $keycloakAuthUrl | quote }}
             - name: KEYCLOAK_REALM

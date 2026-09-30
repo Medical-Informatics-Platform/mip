@@ -7,16 +7,9 @@
 {{- if $publicHost -}}
 {{- $platformUiUrl = printf "https://%s" $publicHost -}}
 {{- end -}}
-{{- $keycloakProtocol := default "https" .Values.keycloak.protocol -}}
-{{- $keycloakHost := default "" .Values.keycloak.host -}}
 {{- $keycloakRealm := default "MIP" .Values.keycloak.realm -}}
-{{- $keycloakAuthUrl := "" -}}
-{{- if and $keycloakProtocol $keycloakHost -}}
-{{- $keycloakAuthUrl = printf "%s://%s/auth/" $keycloakProtocol $keycloakHost -}}
-{{- end -}}
-{{- $localStorageClass := .Values.cluster.storageClasses.local -}}
-{{- $managedStorageClass := .Values.cluster.storageClasses.managed -}}
-{{- $backendStorageClass := ternary $managedStorageClass $localStorageClass .Values.cluster.managed -}}
+{{- $keycloakAuthUrl := include "mip.keycloakAuthUrl" . -}}
+{{- $backendStorageClass := include "mip.storageClass" . -}}
 ---
 # platform-backend PVCs
 apiVersion: v1

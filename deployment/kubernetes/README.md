@@ -56,6 +56,8 @@ Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there ar
 * `cluster`: storage classes and whether the chart should use the managed storage class or the microk8s local storage class.
 * `global`: shared public hostname used by the ingress and backend redirects.
 * `platform-ui`, `platform-backend`, `platformBackendDatabase`: container images and component specific options (including the shared ingress/tls settings and PVC sizes).
+* `platform-ui.notebook`: enables the `/notebook` iframe route in platform-ui and wires nginx to the in-cluster JupyterHub service.
+* `jupyterhub`: JupyterHub and single-user Jupyter images, hub resources, ingress, storage, crypt key, and notebook resource requests/limits. Rendered only when `platform-ui.notebook.enabled` is true, which also requires `keycloak.enabled`. Notebook traffic for the portal iframe should use platform-ui's `/notebook/` proxy; keep `jupyterhub.ingress.enabled: false` unless you need a separate admin-only host.
 * `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`).
 
 Copy `values.yaml` to a new file (for example `my-values.yaml`) and edit it in-place. A few important knobs:
@@ -69,6 +71,8 @@ platform-ui:
     host: platform-backend-service
     port: 8080
     context: services
+  notebook:
+    enabled: true
   ingress:
     tlsSecretName: platform-ui-tls
 
@@ -76,6 +80,22 @@ keycloak:
   enabled: true
   host: iam.example.org
 ```
+
+See `values.yaml` for the full `jupyterhub` block (images, hub and notebook resources, storage).
+
+JupyterHub encrypts auth state with the key in the `jupyterhub-crypt` secret. Either set `jupyterhub.cryptKey` to a stable value, or leave it empty and create the secret once, like `keycloak-credentials`:
+
+```
+kubectl create secret generic jupyterhub-crypt -n <namespace> --from-literal=crypt-key=$(openssl rand -hex 32)
+```
+
+The chart never generates the key itself, so it stays stable across ArgoCD syncs and `helm template` renders.
+
+Register a Keycloak redirect URI for the Hub OAuth client:
+
+`https://<global.publicHost>/notebook/hub/oauth_callback`
+
+For Kubernetes, make sure `hbpmip/mip-jupyterhub:0.0.1_candidate` and `hbpmip/mip-jupyter:0.0.1_candidate` are pushed to the configured registry or loaded onto every node that may run the pods.
 
 The reachability diagram from the legacy profiles is still valid as a reference for deciding the correct public URL:
 ![MIP Reachability Scheme](../docs/MIP_Configuration.png)

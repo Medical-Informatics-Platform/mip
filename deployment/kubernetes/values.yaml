@@ -23,6 +23,8 @@ platform-ui:
     host: platform-backend-service
     port: 8080
     context: services
+  notebook:
+    enabled: true
   guide:
     covariate: Sex
     variable: Age
@@ -50,3 +52,32 @@ platformBackendDatabase:
 keycloak:
   enabled: true
   host: iam.ebrains.eu
+
+jupyterhub:
+  # Leave empty and create the jupyterhub-crypt secret out-of-band (see README),
+  # or set a stable value such as `openssl rand -hex 32`.
+  cryptKey: ""
+  image:
+    repository: hbpmip/mip-jupyterhub
+    tag: 0.0.1_candidate
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  ingress:
+    enabled: false
+  singleuser:
+    image:
+      repository: hbpmip/mip-jupyter
+      tag: 0.0.1_candidate
+    storageCapacity: 2Gi
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1G
+      limits:
+        cpu: "1"
+        memory: 4G

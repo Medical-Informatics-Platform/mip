@@ -9,6 +9,10 @@
 {{- $guideVariable := default "Age" $guide.variable -}}
 {{- $ingressEnabled := ne (toString $ingress.enabled) "false" -}}
 {{- $publicHost := default "" .Values.global.publicHost -}}
+{{- $notebook := default (dict) $platformUi.notebook -}}
+{{- $notebookEnabled := eq (toString $notebook.enabled) "true" -}}
+{{- /* nginx resolves proxy_pass hosts at startup; without the notebook, jupyterhub is not deployed. */ -}}
+{{- $jupyterServer := ternary "jupyterhub:80" "127.0.0.1:80" $notebookEnabled -}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -47,6 +51,13 @@ spec:
             - name: PLATFORM_BACKEND_CONTEXT
               value: {{ $backendContext | quote }}
 {{- end }}
+            - name: NOTEBOOK_ENABLED
+              value: {{ ternary "1" "0" $notebookEnabled | quote }}
+            - name: JUPYTER_SERVER
+              value: {{ $jupyterServer | quote }}
+            # nginx.conf.template hardcodes /notebook in its redirects; envsubst needs it set.
+            - name: JUPYTER_CONTEXT
+              value: "notebook"
 ---
 apiVersion: v1
 kind: Service

@@ -28,6 +28,10 @@
 {{- if and $keycloakProtocol $keycloakHost -}}
 {{- $keycloakAuthUrl = printf "%s://%s/auth/" $keycloakProtocol $keycloakHost -}}
 {{- end -}}
+{{- $keycloakEnabled := true -}}
+{{- if kindIs "bool" .Values.keycloak.enabled -}}
+{{- $keycloakEnabled = .Values.keycloak.enabled -}}
+{{- end -}}
 {{- $jupyterBasePath := default "notebook" $notebook.context -}}
 {{- $publicHost := .Values.global.publicHost -}}
 {{- $existingCrypt := lookup "v1" "Secret" $namespace "jupyterhub-crypt" -}}
@@ -44,6 +48,11 @@
 {{- $singleuserLimits := default (dict) $singleuserResources.limits -}}
 {{- $hubIngress := default (dict) $jupyterHub.ingress -}}
 {{- $persistence := default (dict) $jupyterHub.persistence -}}
+{{- $codex := default (dict) $jupyterHub.codex -}}
+{{- $codexBaseUrl := default "" $codex.baseUrl -}}
+{{- $codexModel := default "RadixArk/Qwen3.8-Flash-Next-NVFP4" $codex.model -}}
+{{- $codexProvider := default "vllm" $codex.provider -}}
+{{- $codexReasoningEffort := default "low" $codex.reasoningEffort -}}
 {{- $healthPath := printf "/%s/hub/health" $jupyterBasePath -}}
 
 ---
@@ -199,6 +208,80 @@ spec:
         - name: jupyterhub
           image: {{ $hubImage | quote }}
           imagePullPolicy: {{ default "Always" $hubImageSpec.pullPolicy | quote }}
+{{- if $keycloakEnabled }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              python3 - <<'PY'
+              from pathlib import Path
+              path = Path("/etc/jupyterhub/jupyterhub_config.py")
+              text = path.read_text()
+              if "userdata_from_id_token" not in text:
+                  text = text.replace(
+                      '    c.GenericOAuthenticator.userdata_url = f"{_realm_base}/protocol/openid-connect/userinfo"\n',
+                      "    # DT4H Keycloak returns UserInfo as application/jwt; use ID token claims instead.\n"
+                      "    c.GenericOAuthenticator.userdata_from_id_token = True\n",
+                  )
+              keycloak_auth_patch = (
+                  "\n\n# DT4H Keycloak: allow auth_state refresh when the stored ID token has expired.\n"
+                  "import jwt\n"
+                  "from oauthenticator.generic import GenericOAuthenticator\n\n"
+                  "class KeycloakOAuthenticator(GenericOAuthenticator):\n"
+                  "    async def token_to_user(self, token_info):\n"
+                  "        if self.userdata_from_id_token:\n"
+                  "            id_token = token_info.get(\"id_token\")\n"
+                  "            if id_token:\n"
+                  "                return jwt.decode(\n"
+                  "                    id_token,\n"
+                  "                    audience=self.client_id,\n"
+                  "                    options=dict(\n"
+                  "                        verify_signature=False,\n"
+                  "                        verify_aud=True,\n"
+                  "                        verify_exp=False,\n"
+                  "                    ),\n"
+                  "                )\n"
+                  "        return await super().token_to_user(token_info)\n\n"
+                  "if _use_keycloak:\n"
+                  "    c.JupyterHub.authenticator_class = KeycloakOAuthenticator\n"
+              )
+              if "KeycloakOAuthenticator" not in text:
+                  text += keycloak_auth_patch
+              node_selector_patch = (
+                  "\n_node_selector = _env(\"JUPYTER_NODE_SELECTOR\")\n"
+                  "if _node_selector:\n"
+                  "    c.KubeSpawner.node_selector = dict(\n"
+                  "        pair.split(\"=\", 1) for pair in _node_selector.split(\",\") if \"=\" in pair\n"
+                  "    )\n"
+              )
+              if "JUPYTER_NODE_SELECTOR" not in text:
+                  text += node_selector_patch
+              storage_patch = (
+                  "\n# Per-user home PVC on the selected node (hostpath on microk8s master).\n"
+                  "c.KubeSpawner.storage_pvc_ensure = True\n"
+                  "c.KubeSpawner.uid = 1000\n"
+                  "c.KubeSpawner.fs_gid = 100\n"
+                  "c.KubeSpawner.volumes = [{\n"
+                  "    'name': 'home',\n"
+                  "    'persistentVolumeClaim': {'claimName': '{pvc_name}'},\n"
+                  "}]\n"
+                  "c.KubeSpawner.volume_mounts = [{\n"
+                  "    'name': 'home',\n"
+                  "    'mountPath': '/home/jovyan',\n"
+                  "}]\n"
+                  "c.KubeSpawner.init_containers = [{\n"
+                  "    'name': 'fix-home-perm',\n"
+                  "    'image': _env('JUPYTER_SINGLEUSER_IMAGE', 'hbpmip/mip-jupyter:dev'),\n"
+                  "    'command': ['sh', '-c', 'mkdir -p /mnt/home/work && chown -R 1000:100 /mnt/home'],\n"
+                  "    'volumeMounts': [{'name': 'home', 'mountPath': '/mnt/home'}],\n"
+                  "    'securityContext': {'runAsUser': 0, 'runAsGroup': 0},\n"
+                  "}]\n"
+              )
+              if "fix-home-perm" not in text:
+                  text += storage_patch
+              Path("/tmp/jupyterhub_config.py").write_text(text)
+              PY
+              exec jupyterhub -f /tmp/jupyterhub_config.py
+{{- end }}
           ports:
             - name: http
               containerPort: 8000
@@ -207,21 +290,21 @@ spec:
           startupProbe:
             httpGet:
               path: {{ $healthPath | quote }}
-              port: http
+              port: hub-api
             periodSeconds: 5
             timeoutSeconds: 5
             failureThreshold: 30
           readinessProbe:
             httpGet:
               path: {{ $healthPath | quote }}
-              port: http
+              port: hub-api
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
           livenessProbe:
             httpGet:
               path: {{ $healthPath | quote }}
-              port: http
+              port: hub-api
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 3
@@ -252,17 +335,35 @@ spec:
             - name: JUPYTER_CPU_LIMIT
               value: {{ default "1" $singleuserLimits.cpu | quote }}
             - name: JUPYTER_MEM_LIMIT
-              value: {{ default "1Gi" $singleuserLimits.memory | quote }}
+              value: {{ default "4Gi" $singleuserLimits.memory | quote }}
             - name: JUPYTER_CPU_GUARANTEE
               value: {{ default "500m" $singleuserRequests.cpu | quote }}
             - name: JUPYTER_MEM_GUARANTEE
-              value: {{ default "512Mi" $singleuserRequests.memory | quote }}
+              value: {{ default "1Gi" $singleuserRequests.memory | quote }}
             - name: JUPYTERHUB_BASE_PATH
               value: {{ printf "/%s/" $jupyterBasePath | quote }}
             - name: JUPYTERHUB_LOGOUT_REDIRECT_URL
               value: {{ printf "https://%s" $publicHost | quote }}
             - name: JUPYTERHUB_COOKIE_SECURE
               value: "true"
+{{- if not .Values.cluster.managed }}
+            - name: JUPYTER_NODE_SELECTOR
+              value: "master=true"
+{{- end }}
+{{- if not $keycloakEnabled }}
+            - name: JUPYTERHUB_USE_DUMMY_AUTH
+              value: "true"
+{{- end }}
+{{- if $codexBaseUrl }}
+            - name: CODEX_VLLM_BASE_URL
+              value: {{ $codexBaseUrl | quote }}
+            - name: CODEX_VLLM_MODEL
+              value: {{ $codexModel | quote }}
+            - name: CODEX_VLLM_PROVIDER
+              value: {{ $codexProvider | quote }}
+            - name: CODEX_REASONING_EFFORT
+              value: {{ $codexReasoningEffort | quote }}
+{{- end }}
             - name: KEYCLOAK_AUTH_URL
               value: {{ $keycloakAuthUrl | quote }}
             - name: KEYCLOAK_REALM

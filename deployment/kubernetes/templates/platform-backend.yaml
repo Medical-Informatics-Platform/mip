@@ -1,7 +1,17 @@
 {{- $namespace := default "default" .Release.Namespace -}}
 {{- $platformBackend := index .Values "platform-backend" -}}
-{{- $authEnabled := default true .Values.keycloak.enabled -}}
+{{- $authEnabled := true -}}
+{{- if kindIs "bool" .Values.keycloak.enabled -}}
+{{- $authEnabled = .Values.keycloak.enabled -}}
+{{- end -}}
 {{- $authFlag := ternary "1" "0" $authEnabled -}}
+{{- $enforceDatasetClaims := true -}}
+{{- if hasKey $platformBackend.auth "enforceDatasetClaims" -}}
+{{- if kindIs "bool" $platformBackend.auth.enforceDatasetClaims -}}
+{{- $enforceDatasetClaims = $platformBackend.auth.enforceDatasetClaims -}}
+{{- end -}}
+{{- end -}}
+{{- $enforceDatasetClaimsFlag := ternary "1" "0" $enforceDatasetClaims -}}
 {{- $publicHost := default "" .Values.global.publicHost -}}
 {{- $platformUiUrl := "" -}}
 {{- if $publicHost -}}
@@ -184,6 +194,8 @@ spec:
               value: {{ $platformBackend.config.logLevelFramework | quote }}
             - name: AUTHENTICATION
               value: {{ $authFlag | quote }}
+            - name: AUTHENTICATION_ENFORCE_DATASET_CLAIMS
+              value: {{ $enforceDatasetClaimsFlag | quote }}
             - name: PLATFORM_DB_URL
               value: jdbc:postgresql://localhost:5432/portal
             - name: PLATFORM_DB_SERVER

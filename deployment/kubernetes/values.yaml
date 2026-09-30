@@ -13,7 +13,7 @@ mip:
 platform-ui:
   image:
     repository: hbpmip/platform-ui
-    tag: 2.0.0_120926
+    tag: 2.0.0_140926
   ingress:
     enabled: true
     className: public
@@ -34,6 +34,8 @@ platform-backend:
   image:
     repository: hbpmip/platform-backend
     tag: dt4h_final
+  auth:
+    enforceDatasetClaims: false
   config:
     logLevel: INFO
     logLevelFramework: INFO
@@ -79,6 +81,11 @@ jupyterhub:
     className: public
     tlsSecretName: jupyterhub-tls
     host: ""
+  codex:
+    baseUrl: http://195.251.63.150:8888/v1
+    model: qwen3.8-27b-6000pro
+    provider: vllm
+    reasoningEffort: low
   singleuser:
     image:
       repository: hbpmip/mip-jupyter
@@ -89,7 +96,7 @@ jupyterhub:
     resources:
       requests:
         cpu: 500m
-        memory: 512Mi
+        memory: 1Gi
       limits:
         cpu: "1"
-        memory: 1Gi
+        memory: 4Gi

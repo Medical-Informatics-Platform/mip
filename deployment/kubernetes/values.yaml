@@ -81,11 +81,6 @@ jupyterhub:
     className: public
     tlsSecretName: jupyterhub-tls
     host: ""
-  codex:
-    baseUrl: http://195.251.63.150:8888/v1
-    model: qwen3.8-27b-6000pro
-    provider: vllm
-    reasoningEffort: low
   singleuser:
     image:
       repository: hbpmip/mip-jupyter

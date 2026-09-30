@@ -1,6 +1,6 @@
 {{- $namespace := default "default" .Release.Namespace -}}
 {{- $platformBackend := index .Values "platform-backend" -}}
-{{- $authEnabled := default true .Values.keycloak.enabled -}}
+{{- $authEnabled := ne (toString .Values.keycloak.enabled) "false" -}}
 {{- $authFlag := ternary "1" "0" $authEnabled -}}
 {{- $publicHost := default "" .Values.global.publicHost -}}
 {{- $platformUiUrl := "" -}}
@@ -94,7 +94,7 @@ spec:
       labels:
         app: platform-backend
     spec:
-{{- if not .Values.cluster.managed }}
+{{- if eq (toString .Values.cluster.managed) "false" }}
       nodeSelector:
         master: "true"
 {{- end }}

@@ -7,5 +7,5 @@
 {{- end -}}
 
 {{- define "mip.storageClass" -}}
-{{- ternary .Values.cluster.storageClasses.managed .Values.cluster.storageClasses.local .Values.cluster.managed -}}
+{{- ternary .Values.cluster.storageClasses.managed .Values.cluster.storageClasses.local (ne (toString .Values.cluster.managed) "false") -}}
 {{- end -}}

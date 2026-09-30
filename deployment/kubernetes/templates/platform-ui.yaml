@@ -7,7 +7,7 @@
 {{- $guide := default (dict) $platformUi.guide -}}
 {{- $guideCovariate := default "Sex" $guide.covariate -}}
 {{- $guideVariable := default "Age" $guide.variable -}}
-{{- $ingressEnabled := default true $ingress.enabled -}}
+{{- $ingressEnabled := ne (toString $ingress.enabled) "false" -}}
 {{- $publicHost := default "" .Values.global.publicHost -}}
 ---
 apiVersion: apps/v1
@@ -25,7 +25,7 @@ spec:
       labels:
         app: platform-ui
     spec:
-{{- if not .Values.cluster.managed }}
+{{- if eq (toString .Values.cluster.managed) "false" }}
       nodeSelector:
         master: "true"
 {{- end }}

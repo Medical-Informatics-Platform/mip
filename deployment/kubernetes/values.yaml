@@ -69,6 +69,14 @@ jupyterhub:
       memory: 512Mi
   ingress:
     enabled: false
+  # OpenAI-compatible inference server for the Jupyter AI Codex persona.
+  # baseUrl ends in /v1; empty leaves Codex unconfigured. Point it at a proxy
+  # (e.g. mip-infra-staging's athena-proxy) to keep the real server URL out of
+  # notebooks. model must equal a served id from <baseUrl>/models; empty keeps
+  # the image default.
+  codex:
+    baseUrl: ""
+    model: ""
   singleuser:
     image:
       repository: hbpmip/mip-jupyter

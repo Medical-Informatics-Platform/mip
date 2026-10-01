@@ -69,6 +69,10 @@ jupyterhub:
       memory: 512Mi
   ingress:
     enabled: false
+  # kubespawner: the hub creates notebook pods itself (Role on pods/PVCs).
+  # operator: the MIP notebook operator does (mip-jupyter/operator); the hub
+  # only creates Notebook resources. Needs the operator and its CRDs installed.
+  spawner: kubespawner
   # OpenAI-compatible inference server for the Jupyter AI Codex persona.
   # baseUrl ends in /v1; empty leaves Codex unconfigured. Point it at a proxy
   # (e.g. mip-infra-staging's athena-proxy) to keep the real server URL out of

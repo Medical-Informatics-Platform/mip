@@ -12,6 +12,7 @@
 {{- $keycloakRealm := default "MIP" .Values.keycloak.realm -}}
 {{- $keycloakAuthUrl := include "mip.keycloakAuthUrl" . -}}
 {{- $publicHost := .Values.global.publicHost -}}
+{{- $useOperator := eq (default "kubespawner" $jupyterHub.spawner) "operator" -}}
 {{- if $jupyterHub.cryptKey }}
 ---
 # Without jupyterhub.cryptKey, create the secret out-of-band (see README) so the
@@ -56,12 +57,24 @@ metadata:
   name: jupyterhub
   namespace: {{ $namespace }}
 rules:
+{{- if $useOperator }}
+  # The MIP notebook operator builds the pods from the NotebookProfile below;
+  # the hub only asks for them. secrets: create (no read/update/delete) is for
+  # the per-server API token Secret, owned by its Notebook.
+  - apiGroups: ["notebooks.mip.ebrains.eu"]
+    resources: ["notebooks"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+{{- else }}
   - apiGroups: [""]
     resources: ["pods", "persistentvolumeclaims"]
     verbs: ["get", "list", "watch", "create", "delete"]
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["get", "list", "watch"]
+{{- end }}
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -165,6 +178,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: JUPYTERHUB_SPAWNER
+              value: {{ ternary "operator" "kubespawner" $useOperator | quote }}
             - name: JUPYTER_SINGLEUSER_IMAGE
               value: {{ $singleuserImage | quote }}
 {{- if eq (toString .Values.cluster.managed) "false" }}
@@ -222,4 +237,44 @@ spec:
           volumeMounts:
             - name: jupyterhub-claim0
               mountPath: /srv/jupyterhub
+{{- if $useOperator }}
+
+---
+# Pod template for the MIP notebook operator (mip-jupyter/operator). The hub
+# cannot read or change it; the operator applies the security context itself.
+apiVersion: notebooks.mip.ebrains.eu/v1alpha1
+kind: NotebookProfile
+metadata:
+  name: default
+  namespace: {{ $namespace }}
+spec:
+  image: {{ $singleuserImage | quote }}
+  imagePullPolicy: Always
+  resources:
+    {{- toYaml $jupyterHub.singleuser.resources | nindent 4 }}
+  storage:
+    storageClassName: {{ $storageClass | quote }}
+    size: {{ $jupyterHub.singleuser.storageCapacity | quote }}
+    # New volumes are root-owned and not every provisioner applies fsGroup;
+    # the notebook (uid 1000) must own /home/jovyan/work. Same chown init
+    # container KubeSpawner ran.
+    fixOwnership: true
+{{- if eq (toString .Values.cluster.managed) "false" }}
+  nodeSelector:
+    master: "true"
+{{- end }}
+  env:
+    - name: PLATFORM_BACKEND_URL
+      value: http://platform-backend-service:8080/services
+{{- with $jupyterHub.codex }}
+{{- if .baseUrl }}
+    - name: CODEX_VLLM_BASE_URL
+      value: {{ .baseUrl | quote }}
+{{- end }}
+{{- if .model }}
+    - name: CODEX_VLLM_MODEL
+      value: {{ .model | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

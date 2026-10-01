@@ -50,6 +50,7 @@ metadata:
   name: jupyterhub
   namespace: {{ $namespace }}
 
+{{- if ne (toString $jupyterHub.rbac.create) "false" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -90,6 +91,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: jupyterhub
+{{- end }}
 
 ---
 apiVersion: v1

@@ -73,6 +73,11 @@ jupyterhub:
   # operator: the MIP notebook operator does (mip-jupyter/operator); the hub
   # only creates Notebook resources. Needs the operator and its CRDs installed.
   spawner: kubespawner
+  rbac:
+    # false: an admin applies the hub Role/RoleBinding (e.g. with
+    # mip-infra-staging's out-of-band RBAC), so the GitOps tool needs no
+    # RBAC write. The rules must match the spawner mode.
+    create: true
   # OpenAI-compatible inference server for the Jupyter AI Codex persona.
   # baseUrl ends in /v1; empty leaves Codex unconfigured. Point it at a proxy
   # (e.g. mip-infra-staging's athena-proxy) to keep the real server URL out of

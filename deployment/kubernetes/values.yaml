@@ -13,7 +13,7 @@ mip:
 platform-ui:
   image:
     repository: hbpmip/platform-ui
-    tag: 2.0.0_candidate
+    tag: 2.0.0
   ingress:
     enabled: true
     className: haproxy-public
@@ -31,7 +31,7 @@ platform-ui:
 platform-backend:
   image:
     repository: hbpmip/platform-backend
-    tag: 10.0.0_candidate
+    tag: 10.0.0
   config:
     logLevel: INFO
     logLevelFramework: INFO
@@ -59,7 +59,7 @@ jupyterhub:
   cryptKey: ""
   image:
     repository: hbpmip/mip-jupyterhub
-    tag: 0.0.1_candidate
+    tag: 0.1.0
   resources:
     requests:
       cpu: 100m
@@ -89,7 +89,7 @@ jupyterhub:
   singleuser:
     image:
       repository: hbpmip/mip-jupyter
-      tag: 0.0.1_candidate
+      tag: 0.1.0
     storageCapacity: 2Gi
     resources:
       requests:

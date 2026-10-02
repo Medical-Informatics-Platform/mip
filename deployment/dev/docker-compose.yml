@@ -186,7 +186,7 @@ services:
     restart: unless-stopped
 
   mip_jupyter:
-    image: hbpmip/mip-jupyter:0.0.1_candidate
+    image: hbpmip/mip-jupyter:${MIP_JUPYTER}
     ports:
       - "127.0.0.1:8888:8888"
     environment:

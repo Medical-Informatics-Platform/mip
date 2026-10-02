@@ -26,29 +26,53 @@ From now on, most of our deployments will be done with Ubuntu Server 22.04, but 
 ## Components:
 Now, with the Kubernetes (K8s) deployment, we have 2 main component packs, that need to be deployed, which come as Helm charts:
 
-### The engine: [Exaflow](https://github.com/madgik/exaflow/tree/master/kubernetes)
-* [controller](https://github.com/madgik/exaflow/tree/master/exaflow/controller)
-* [worker](https://github.com/madgik/exaflow/tree/master/exaflow/worker)
+### The analysis engine: Exaflow
 
-* [smpc-db](https://github.com/docker-library/mongo)
-* [smpc-queue](https://github.com/docker-library/redis)
-* [smpc-coordinator](https://github.com/Exaflow/tree/master/exaflow)
-* [smpc_player](https://github.com/Exaflow/tree/master/exaflow)
-* [smpc-client](https://github.com/madgik/exaflow/tree/master/exaflow)
+Deploy the [Exaflow 1.2.1 chart](https://github.com/madgik/exaflow/tree/1.2.1/kubernetes)
+for the native federated pipeline:
 
-### The web app stack:
-* [platform-ui](https://github.com/Medical-Informatics-Platform/platform-ui): The "Web App" UI
-* [platform-backend](https://github.com/Medical-Informatics-Platform/platform-backend): The "Backend API" which supports the Web App
-    * Its database bootstrap script lives next to the application code (`config/scripts/bootstrap-platform-backend-db.sh`) and the same script is vendored in this chart under `files/platform-backend-db-init.sh` so the deployment can mount it via ConfigMap without embedding a large shell block inside the template. Keeping both copies in sync lets the container image and the Helm release evolve together.
-* [platform_backend_db](https://github.com/docker-library/postgres): The platform-backend's database
-**External Keycloak**: Authentication is provided by an existing Keycloak realm; this chart only wires the configuration values so the UI stack can reach it.
+- Controller: accepts analyses and coordinates execution.
+- Local workers: load each site's datasets and execute local computations.
+- Global worker: provides the chart's global-worker service.
+- Aggregation server: combines partial vectors for algorithms and preprocessing
+  steps that require aggregation. Keep `aggregation_server.enabled: true` for
+  the full native algorithm portfolio.
 
+Flower and SMPC are optional features with separate setup requirements. The
+example below disables them and focuses on the native pipeline.
 
-## Taking care of the medical data
-### Storing the data in the worker VMs
-On each **worker** node, a folder should be created `/data/<MIP_INSTANCE_OR_FEDERATION_NAME>/<PATHOLOGY_NAME>` for
-every pathology for which we will have at least one dataset.
-Afterward, The dataset CSV files should be placed in their proper pathology folder.
+### The web and notebook stack
+
+- **platform-ui**: Experiment Studio, result visualizations, and notebook entry.
+- **platform-backend**: authenticated analysis API and experiment management.
+- **PostgreSQL**: stores platform experiments, folders, and other application state.
+- **JupyterHub and single-user JupyterLab**: notebook sessions and workspaces,
+  using images from **mip-jupyter**. Hub state and user homes use separate PVCs.
+- **External Keycloak**: provides authentication; this chart wires an existing
+  realm and client credentials rather than deploying Keycloak.
+
+Component versions are listed in [MIP Components](../../documentation/Components.md).
+The database bootstrap script is vendored at
+`files/platform-backend-db-init.sh` and mounted through a ConfigMap. Keep it
+aligned with the backend release when updating the chart.
+
+## Dataset placement
+
+Prepare CSV datasets and `CDEsMetadata.json` according to the
+[dataset onboarding guide](../../documentation/MIP_Data_management_documentation.md).
+For unmanaged Exaflow clusters, the chart mounts
+`<storage.hostPath.db.localworker>/csvs` from each worker node into `/opt/csvs`.
+Each data-model directory belongs under that `csvs` directory. With the example
+below, this is `/data/<MIP_INSTANCE_OR_FEDERATION_NAME>/localworker/csvs`.
+Prepare the global worker's `csvs` directory on the master node as well.
+
+For managed Exaflow clusters, populate the CSV PVCs provisioned by the Exaflow
+chart. Data placement and backups remain the responsibility of each data site.
+The worker DuckDB database is rebuilt from these inputs on startup.
+
+Researcher filters and transformations are configured per analysis in the
+Experiment Studio or notebook pipelines. They do not replace dataset onboarding
+or alter the source CSV files.
 
 ## Configuration
 Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there are a few adjustments to make in `values.yaml`. Each top-level section controls a part of the stack:
@@ -145,84 +169,110 @@ On microk8s, the MIP web-app chart schedules both `platform-backend` and `platfo
 
 For a "federated" deployment, you may want to add nodes to your cluster. "microk8s add-node" will give you a **one-time usage** token, which you can use on a worker node to actually "join" the cluster. This process must be repeated on all the worker nodes.
 
-### Exaflow Deployment
-* Install the repository content
-  ```
-  sudo git clone https://github.com/madgik/exaflow /opt/exaflow
-  ```
-  ```
-  sudo chown -R mipadmin.mipadmin /opt/exaflow
-  ```
-* Set the variables in /opt/exaflow/kubernetes/values.yaml
-    * localnodes: 1 for a "local" deployment (yes, even if it's the same machine for master and worker), or more (the number of workers, not counting the master node) for a "federated" deployment
-    * credentials_location: /opt/exaflow/credentials
-    * db.storage_location: /opt/exaflow/.stored_data/db
-    * db.csvs_location: /data/<MIP_INSTANCE_OR_FEDERATION_NAME>
-    * controller.cleanup_file_folder: /opt/exaflow/.stored_data/cleanup
-    * smpc.enabled: true (if you want, and **ONLY** in case of a federated deployment, and also **ONLY** if you have at least 3 worker nodes!)
-* Label the nodes
+### Exaflow deployment
 
-  For the master node:
-  ```
-  microk8s kubectl label node <MASTER_HOSTNAME> master=true
-  ```
-  For all the worker nodes (even on a "local" deployment where the master and the worker are the **same** machine), add *worker* and (if you want) *smpc_player* labels:
-  ```
-  microk8s kubectl label node <WORKER_HOSTNAME> worker=true
-  ```
-  ```
-  microk8s kubectl label node <WORKER_HOSTNAME> smpc_player=true
-  ```
-* Deploy the Helm chart
-  ```
-  microk8s helm3 install exaflow /opt/exaflow/kubernetes
-  ```
+Clone the matching engine release and create an environment-specific values file:
 
-For a more in-depth guide on deploying Exaflow, please refer to the documentation available on the [Exaflow Kubernetes repository](https://github.com/madgik/exaflow/blob/master/kubernetes).
+```bash
+sudo git clone --branch 1.2.1 https://github.com/madgik/exaflow /opt/exaflow
+sudo chown -R mipadmin:mipadmin /opt/exaflow
+cp /opt/exaflow/kubernetes/values.yaml /opt/exaflow/kubernetes/my-values.yaml
+```
 
+Set these values in `my-values.yaml` for a microk8s deployment. Replace the
+namespace, federation name, paths, and worker count for your installation:
 
+```yaml
+namespace: <target-namespace>
+managed_cluster: false
+localnodes: 1
+exaflow_images:
+  repository: madgik
+  version: 1.2.1
+federation: <MIP_INSTANCE_OR_FEDERATION_NAME>
+aggregation_server:
+  enabled: true
+flower:
+  enabled: false
+smpc:
+  enabled: false
+storage:
+  hostPath:
+    db:
+      localworker: /data/<MIP_INSTANCE_OR_FEDERATION_NAME>/localworker
+      globalworker: /data/<MIP_INSTANCE_OR_FEDERATION_NAME>/globalworker
+```
 
-### Web App Stack Components Deployment
-* Install the repository content
-  ```
-  sudo git clone https://github.com/Medical-Informatics-Platform/mip-deployment /opt/mip-deployment
-  ```
-  ```
-  sudo chown -R mipadmin.mipadmin /opt/mip-deployment
-  ```
+`localnodes` counts local workers. The chart requires one local worker per
+eligible host through pod anti-affinity; a single-host installation uses `1`
+and labels the same node as both master and worker. The current templates use
+`managed_cluster` to select hostPath versus CSV PVC storage; `storage.type`
+alone does not change that selection. For managed clusters, set
+`managed_cluster: true` and configure `storage.cephfs.storageClassName` and the
+CSV volume sizes in the Exaflow values file.
 
-* Copy `values.yaml` to `/opt/mip-deployment/kubernetes/my-values.yaml` and tailor it to your environment.
-  * On microk8s, keep `cluster.managed: false` so the chart uses the local storage class it bootstraps.
-* Deploy (or upgrade) the Helm release with your customised values
-  ```
-  microk8s helm3 upgrade --install mip \
-    --namespace <target-namespace> \
-    -f /opt/mip-deployment/kubernetes/my-values.yaml \
-    /opt/mip-deployment/kubernetes
-  ```
+Label the nodes for an unmanaged installation:
 
-# MicroK8s Automatic Recoverability
+```bash
+microk8s kubectl label node <MASTER_HOSTNAME> master=true
+microk8s kubectl label node <WORKER_HOSTNAME> worker=true
+```
 
-## Overview
-MicroK8s is designed for simplicity and resilience. One of its key features is the automatic recoverability of both federated clusters and individual local nodes.
+After preparing the dataset directories or volumes, deploy:
 
-## Automatic Recoverability in Federation
-In a federated cluster setup, MicroK8s ensures high availability and fault tolerance. If the master node in a federation faces downtime or operational issues, MicroK8s is designed to automatically recover its state and functionality.
+```bash
+microk8s helm3 upgrade --install exaflow /opt/exaflow/kubernetes \
+  --namespace <target-namespace> --create-namespace \
+  -f /opt/exaflow/kubernetes/my-values.yaml
+```
 
-### Key Points:
-- **Self-healing Mechanism**: MicroK8s employs a self-healing mechanism that triggers upon detecting issues with the master node.
-- **State Restoration**: Automatically restores the master node to its last known healthy state without manual intervention.
+Keep the Helm namespace and the Exaflow `namespace` value identical. The
+backend's `engines.exaflow.url` must reach `exaflow-controller-service`; the
+existing short service name works when both charts share a namespace. For
+separate namespaces use the controller's fully qualified service DNS name.
 
-## Local Node Recoverability
-For individual local nodes, MicroK8s offers a robust recovery process. This process is vital in scenarios where local nodes experience disruptions.
+See the [Exaflow chart](https://github.com/madgik/exaflow/tree/1.2.1/kubernetes)
+for the full values and templates. The old `credentials_location`,
+`db.storage_location`, `db.csvs_location`, and `controller.cleanup_file_folder`
+settings are not used by this chart.
 
-### Key Points:
-- **Node Health Monitoring**: Continuous monitoring of node health to quickly identify any disruptions.
-- **Automatic Restoration**: On reboot or reconnection, the local node automatically synchronizes and restores its state to align with the federation's current status.
+### Web and notebook stack deployment
 
-## Recovery Time Frame
-The recovery process in MicroK8s, whether for a federation or a local node, typically completes within a brief period.
+The deployment chart lives in this **mip** repository:
 
-### Expected Timeline:
-- **Minimum Recovery Time**: Approximately 1 minute.
-- **Maximum Recovery Time**: Up to 5 minutes, depending on the complexity and scale of the cluster.
+```bash
+sudo git clone https://github.com/Medical-Informatics-Platform/mip /opt/mip
+sudo chown -R mipadmin:mipadmin /opt/mip
+cp /opt/mip/deployment/kubernetes/values.yaml /opt/mip/deployment/kubernetes/my-values.yaml
+```
+
+Use the MIP 9.2.0 release checkout when available. Edit `my-values.yaml` for your
+installation, including image versions, ingress settings, storage classes, and
+external authentication. On microk8s set `cluster.managed: false`; on managed
+clusters set it to `true` and choose the appropriate managed storage class.
+The MIP `cluster.managed` flag is independent of Exaflow's `managed_cluster`.
+
+Provision the referenced `mip-secret`, `keycloak-credentials`, TLS secret, and
+`jupyterhub-crypt` through your secret-management process. Required secret keys
+are declared in the chart templates; keep private values out of the repository.
+For notebooks, preserve the crypt key across deployments and configure the
+Keycloak callback described above.
+
+```bash
+microk8s helm3 upgrade --install mip /opt/mip/deployment/kubernetes \
+  --namespace <target-namespace> --create-namespace \
+  -f /opt/mip/deployment/kubernetes/my-values.yaml
+```
+
+Confirm that the workloads are ready, the portal can discover data and run an
+analysis, and a notebook session can connect to the backend. Use
+[Backup and Recovery](../docs/BackupAndRecovery.md) before upgrades or storage
+changes.
+
+## Recovery expectations
+
+Kubernetes may restart or reschedule workloads after a failure, but that does
+not recover lost database contents, notebook files, secrets, or node-local
+storage. Recovery time depends on the failure and storage backend. Maintain
+verified backups and follow the [recovery procedure](../docs/BackupAndRecovery.md)
+rather than relying on automatic workload restart as a backup strategy.

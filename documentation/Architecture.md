@@ -18,6 +18,39 @@ The MIP is designed following an N-Tier paradigm. Multiple tiers are identified 
   - **MIP Federated** offers federated analysis over anonymized data, across multiple hospitals
 
 
+### Analysis workflow and notebook workspace
+
+The redesigned Experiment Studio brings data exploration, Data Handling,
+algorithm configuration, execution, and result review into one guided workflow.
+Data Handling includes cohort filters, missing-value and outlier treatment,
+filter-based categorical columns, and reusable K-means cluster columns. The
+experiments dashboard organizes saved analyses in folders and supports result
+comparison and export.
+
+JupyterLab provides a second entry point for researchers who want to compose
+analyses in Python. The new **mip-jupyter** component packages the notebook
+workspace, `mip` Python client, examples, and JupyterHub and single-user images.
+The client sends requests through **platform-backend**, which applies platform
+access controls and delegates federated computation to **Exaflow**:
+
+```text
+Experiment Studio -> platform-backend -> Exaflow -> participating data sites
+Jupyter notebook -> mip Python client -> platform-backend -> Exaflow
+```
+
+Both interfaces use the platform's analysis and specification APIs. Row-level
+clinical records remain at the data sites; notebooks receive analysis results
+through the backend.
+
+When configured, **Cohort Scout** provides notebook creation, editing, and
+explanation through Jupyter AI. Notebook access requires JupyterHub and
+identity-provider integration; the assistant also requires a configured model
+service. The existing diagrams below describe the core analysis architecture;
+this section adds the notebook path.
+
+See the [component versions](Components.md) and
+[notebook guide](notebooks.md) for repository links and starting instructions.
+
 ### Data Management
 
 For more details on the various aspects of data management in the MIP, you can go to the [Data Management Guide](./MIP_Data_management_documentation.md).

@@ -8,6 +8,8 @@
 
   * [Document Overview](#document-overview)
 
+  * [Dataset onboarding and analysis preparation](#dataset-onboarding-and-analysis-preparation)
+
   * [Concepts and Definitions](#concepts-and-definitions)
 
 * [Data Management and Processing](#data-management-and-processing)
@@ -35,6 +37,19 @@ The document provides the information needed to understand:
 This document describes the MIP Data architecture, and for which purpose it was assembled. It explains the overall data processing required to conform to MIP standards before being uploaded to the MIP and how the MIP Data Quality tools shall be used to help achieving these standards.
 
 It is a step-by-step guide covering data end to end processing and it provides links to additional documentation and detailed instructions described in the different GitHub repositories and shall not be seen in isolation.
+
+## Dataset onboarding and analysis preparation
+
+This guide covers **dataset onboarding** by data providers: agreeing on a data
+model, preparing and validating source CSVs and `CDEsMetadata.json`, and making
+them available at the data site. Source corrections and metadata changes belong
+to this process.
+
+Researchers configure **per-analysis preparation** after selecting available
+datasets. Cohort filters, missing-value and outlier handling, longitudinal
+transformations, filter-based categorical columns, and K-means cluster columns
+belong in the Experiment Studio or notebook pipeline. These operations do not
+rewrite uploaded source files.
 
 ## Concepts and Definitions
 

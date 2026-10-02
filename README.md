@@ -8,10 +8,11 @@ More information is available on the [MIP Website](https://ebrains.eu/data-tools
 # Table of Contents <!-- omit in toc --> 
 
 - [About MIP](#about-mip)
-- [9.1 Release](#mip-91-release--major-updates)
+- [9.2.0 Release](#mip-920-release--major-updates)
 - [What MIP Includes](#what-mip-includes)
 - [Deployment](#deployment)
 - [Federated Analysis Algorithms](#federated-analysis-algorithms)
+- [Jupyter Notebooks and Support Agent](#jupyter-notebooks-and-support-agent)
 - [Data Management](#data-management)
 - [Architecture](#architecture)
 - [Onboarding](#onboarding)
@@ -26,41 +27,63 @@ federated statistical and machine-learning analyses across participating sites.
 This repository collects the technical, deployment, data-management, and
 architecture documentation needed to understand, deploy, and operate MIP.
 
-# MIP 9.1 Release – Major Updates
+# MIP 9.2.0 Release – Major Updates
 
-## **Broader federated analytics**
+## Advanced data handling in the UI
 
-MIP 9.1 expands the range of analyses that can be performed across distributed
-clinical datasets without moving patient-level data. The release adds support for
-advanced statistical workflows such as survival analysis, association testing,
-histogram exploration, outlier reporting, and mixed-effects modeling, while
-refreshing the documentation for the core analysis portfolio.
+The redesigned Data Handling step makes advanced preparation part of the
+Experiment Studio workflow. Researchers can configure cohort filters,
+missing-value handling, outlier treatment, and transformations, then review
+summaries and charts of the prepared data before choosing an analysis.
 
-## **Smoother analysis workflow**
+## More transformation options
 
-The analysis experience has been refined to make experiment setup and result
-review clearer. Users get better guidance when selecting variables, clearer
-feedback when an analysis cannot run with the selected inputs, and improved
-result views with more consistent tables, charts, labels, and export actions.
+Researchers can create new categorical columns from filter-based rules, defining
+categories from conditions on existing variables. K-means is also available as
+a preprocessing option: a fitted clustering result can be reused to create a
+categorical cluster column for downstream analyses. These options extend the
+existing missing-value, outlier, and longitudinal transformations.
 
-## **Built-in data preparation**
+## Revamped visualizations and simpler execution
 
-MIP 9.1 introduces more data preparation options directly into the analysis
-workflow. Missing-value handling, outlier handling, and longitudinal
-transformations can be configured before running an analysis, reducing the need
-for manual preparation outside the platform.
+The Experiment Studio guides researchers through data exploration, preparation,
+algorithm configuration, execution, and results. Algorithm visualizations and
+result tables have been redesigned, with PDF reports and CSV exports. The
+updated dashboard supports experiment folders, search, and side-by-side result
+comparison.
 
-## **Deployment-ready platform**
+## Jupyter notebooks for federated research
 
-The platform has been updated with refreshed deployment defaults and reviewed
-documentation for deployment, data management, architecture, and onboarding,
-making MIP easier to operate and evolve across research infrastructures.
+**Jupyter notebooks are a major new feature in MIP.** Researchers can open a
+JupyterLab workspace from the portal and build reproducible analyses in Python.
+The pre-installed `mip` client provides data discovery, filters, preprocessing,
+and algorithm execution through the platform backend. A welcome notebook,
+example analyses, and client documentation help researchers get started while
+patient-level records remain at the contributing sites.
+
+The new [mip-jupyter repository](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.1.0)
+provides the notebook workspace, Python client, and Jupyter images.
+
+## Support agent for notebook creation and explanation
+
+The notebook workspace includes **Cohort Scout**, a support agent that helps
+researchers create and edit notebooks, explain analysis code and results, and
+navigate the MIP Python client. It is available through Jupyter AI when the
+assistant service is configured for the deployment.
+
+## Expanded analytics and supporting services
+
+Exaflow adds histogram-based quartile estimates, a binned Mann-Whitney U test,
+Standardized Mean Difference, and richer K-means reporting and preprocessing.
+The backend introduces analysis and specification endpoints and experiment
+folder management to support the revised workflow. The component releases are
+listed in [MIP building blocks](documentation/Components.md).
 
 # What MIP Includes
 
 MIP combines a web interface, backend services, federated analysis engine,
-deployment tooling, and supporting data-management tools. The main
-[MIP building blocks](documentation/Components.md) are listed with the
+Jupyter notebooks, deployment tooling, and supporting data-management tools.
+The main [MIP building blocks](documentation/Components.md) are listed with the
 repositories that host them.
 
 # Deployment
@@ -76,14 +99,24 @@ The algorithm documentation describes the available federated analyses and links
 to the underlying Exaflow analytic engine documentation.
 
 - [Available federated analysis algorithms](documentation/algorithms.md)
-- [Exaflow Analytic Engine](https://github.com/madgik/exaflow/tree/1.1.0)
+- [Exaflow Analytic Engine](https://github.com/madgik/exaflow/tree/1.2.1)
+
+# Jupyter Notebooks and Support Agent
+
+Use the notebook workspace to discover available data, compose preprocessing
+pipelines, run federated algorithms, and document results alongside Python code.
+Cohort Scout can assist with notebook creation and explanation.
+
+- [Notebook getting-started guide](documentation/notebooks.md)
+- [MIP Jupyter workspace and Python client](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.1.0)
 
 # Data Management
 
-The data-management documentation explains how datasets and metadata are prepared
-for use in MIP.
+Data providers prepare and validate source datasets and metadata before upload.
+Researchers configure filters and transformations per analysis in the Experiment
+Studio or notebook pipelines; these operations do not rewrite uploaded files.
 
-- [Data Management Guide](documentation/MIP_Data_management_documentation.md)
+- [Dataset onboarding: Data Management Guide](documentation/MIP_Data_management_documentation.md)
 
 A detailed user guide for the Data Quality Control tool can be found here:
  - [Data Quality Control Tool Guide](https://github.com/HBPMedical/DataQualityControlTool/wiki)

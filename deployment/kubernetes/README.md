@@ -95,7 +95,7 @@ Register a Keycloak redirect URI for the Hub OAuth client:
 
 `https://<global.publicHost>/notebook/hub/oauth_callback`
 
-For Kubernetes, make sure `hbpmip/mip-jupyterhub:0.0.1_candidate` and `hbpmip/mip-jupyter:0.0.1_candidate` are pushed to the configured registry or loaded onto every node that may run the pods.
+For Kubernetes, make sure the images set in `jupyterhub.image` and `jupyterhub.singleuser.image` are pushed to the configured registry or loaded onto every node that may run the pods.
 
 The reachability diagram from the legacy profiles is still valid as a reference for deciding the correct public URL:
 ![MIP Reachability Scheme](../docs/MIP_Configuration.png)

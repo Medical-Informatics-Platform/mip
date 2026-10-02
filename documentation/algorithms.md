@@ -16,6 +16,7 @@ validation reference, and limitations.
 | Descriptive Statistics | Summarizes selected numerical and nominal variables with per-dataset and combined summaries. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/Describe.md) |
 | Histogram | Computes counts for one numerical or categorical variable, optionally split by categorical grouping variables. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/Histogram.md) |
 | Outlier Report | Reports outlier bounds, counts, and percentages for numerical variables using Gaussian, IQR, MAD, or quantile rules. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/outlier_report.md) |
+| Quartiles | Estimates Q1, the median, and Q3 for a numerical variable using iterative federated histogram refinement. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/quartiles.md) |
 
 ## Statistical Tests
 
@@ -29,6 +30,8 @@ validation reference, and limitations.
 | One-sample t-test | Compares the mean of a numerical variable with a reference mean. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/TtestOneSample.md) |
 | Paired t-test | Compares two related numerical measurements by testing whether the mean paired difference is zero. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/TtestPaired.md) |
 | Pearson Correlation | Measures linear association between numerical variables and reports correlations, p-values, and confidence intervals. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/Pearson.md) |
+| Binned Mann-Whitney U Test | Compares a numerical variable across two independent groups using approximate ranks from histogram bins. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/binned_mann_whitney_u_test.md) |
+| Standardized Mean Difference | Reports pairwise Cohen's d effect sizes across categories of a grouping variable. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/standardized_mean_difference.md) |
 
 ## Regression and Survival Analysis
 
@@ -57,5 +60,11 @@ validation reference, and limitations.
 
 | Algorithm | Description | Documentation |
 |---|---|---|
-| Preprocessing Steps | Documents missing-value handling, outlier winsorization, and longitudinal transformation steps used before downstream algorithms. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/PreprocessingSteps.md) |
+| Preprocessing Steps | Documents missing-value handling, outlier winsorization, longitudinal transformations, and reusable K-means cluster columns used before downstream algorithms. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/PreprocessingSteps.md) |
 | Outlier Winsorizer | Clips selected numerical variables to bounds computed from Gaussian, IQR, MAD, or quantile rules. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/outlier_winsorizer.md) |
+| K-means Column Creator | Reuses a fitted K-means result to assign a categorical cluster column for downstream analyses. | [Documentation](https://github.com/madgik/exaflow/blob/master/documentation/algorithms/PreprocessingSteps.md#kmeans-cluster-creation) |
+
+The UI also supports creating categorical columns with filter-based category
+rules in the Data Handling step. Researchers can use the prepared variables in
+subsequent analyses through the Experiment Studio or the
+[notebook workspace](notebooks.md).

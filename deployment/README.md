@@ -5,10 +5,10 @@ This folder contains the deployment and operations documentation for MIP.
 ## Main Deployment Guides
 
 ### Development Deployment
-Use the development guide for local/non-production setup with docker-compose.
+Use the development guide for local/non-production setup with Docker Compose.
 
 - [Development deployment guide](dev/README.md)
-- Includes prerequisites (Python, docker-compose), startup instructions, basic tests, and shutdown steps.
+- Includes prerequisites, startup instructions, a data-model readiness check, and shutdown steps.
 
 ### Kubernetes Deployment
 Use the Kubernetes guide for production-like and federated installations.
@@ -19,3 +19,5 @@ Use the Kubernetes guide for production-like and federated installations.
 ## Supporting Documentation
 
 - [Data requirements for onboarding new datasets](../documentation/MIP_Data_management_documentation.md): CSV and `CDEsMetadata.json` format rules, including additional constraints for longitudinal data.
+
+- [Backup and Recovery](docs/BackupAndRecovery.md): PostgreSQL, Hub state, notebook homes, site datasets, and protected configuration.

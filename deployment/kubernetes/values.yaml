@@ -59,7 +59,7 @@ jupyterhub:
   cryptKey: ""
   image:
     repository: hbpmip/mip-jupyterhub
-    tag: 0.1.0
+    tag: 0.1.1
   resources:
     requests:
       cpu: 100m
@@ -89,7 +89,7 @@ jupyterhub:
   singleuser:
     image:
       repository: hbpmip/mip-jupyter
-      tag: 0.1.0
+      tag: 0.1.1
     storageCapacity: 2Gi
     resources:
       requests:

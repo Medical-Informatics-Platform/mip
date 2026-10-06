@@ -8,7 +8,7 @@ More information is available on the [MIP Website](https://ebrains.eu/data-tools
 # Table of Contents <!-- omit in toc --> 
 
 - [About MIP](#about-mip)
-- [9.2.0 Release](#mip-920-release--major-updates)
+- [9.2 Release](#mip-92-release--major-updates)
 - [What MIP Includes](#what-mip-includes)
 - [Deployment](#deployment)
 - [Federated Analysis Algorithms](#federated-analysis-algorithms)
@@ -27,7 +27,7 @@ federated statistical and machine-learning analyses across participating sites.
 This repository collects the technical, deployment, data-management, and
 architecture documentation needed to understand, deploy, and operate MIP.
 
-# MIP 9.2.0 Release – Major Updates
+# MIP 9.2 Release – Major Updates
 
 ## Advanced data handling in the UI
 
@@ -61,7 +61,7 @@ and algorithm execution through the platform backend. A welcome notebook,
 example analyses, and client documentation help researchers get started while
 patient-level records remain at the contributing sites.
 
-The new [mip-jupyter repository](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.1.0)
+The new [mip-jupyter repository](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.1.1)
 provides the notebook workspace, Python client, and Jupyter images.
 
 ## Support agent for notebook creation and explanation
@@ -108,7 +108,7 @@ pipelines, run federated algorithms, and document results alongside Python code.
 Cohort Scout can assist with notebook creation and explanation.
 
 - [Notebook getting-started guide](documentation/notebooks.md)
-- [MIP Jupyter workspace and Python client](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.1.0)
+- [MIP Jupyter workspace and Python client](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.1.1)
 
 # Data Management
 

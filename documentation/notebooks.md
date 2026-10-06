@@ -43,11 +43,11 @@ Example requests include:
 
 ## Repository and further reading
 
-The new [mip-jupyter repository](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.1.0)
+The new [mip-jupyter repository](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.1.1)
 contains the workspace template, Python client, example notebooks, user guides,
 Jupyter images, and assistant integration.
 
-- [Quickstart](https://github.com/Medical-Informatics-Platform/mip-jupyter/blob/0.1.0/docs/user/quickstart.md)
-- [Python client API reference](https://github.com/Medical-Informatics-Platform/mip-jupyter/blob/0.1.0/docs/user/api-reference.md)
-- [Workspace guide](https://github.com/Medical-Informatics-Platform/mip-jupyter/blob/0.1.0/docs/user/workspace-guide.md)
-- [Operator integration guide](https://github.com/Medical-Informatics-Platform/mip-jupyter/blob/0.1.0/docs/operators.md)
+- [Quickstart](https://github.com/Medical-Informatics-Platform/mip-jupyter/blob/0.1.1/docs/user/quickstart.md)
+- [Python client API reference](https://github.com/Medical-Informatics-Platform/mip-jupyter/blob/0.1.1/docs/user/api-reference.md)
+- [Workspace guide](https://github.com/Medical-Informatics-Platform/mip-jupyter/blob/0.1.1/docs/user/workspace-guide.md)
+- [Operator integration guide](https://github.com/Medical-Informatics-Platform/mip-jupyter/blob/0.1.1/docs/operators.md)

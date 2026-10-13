@@ -30,7 +30,7 @@ comparison and export.
 JupyterLab provides a second entry point for researchers who want to compose
 analyses in Python. The new **mip-jupyter** component packages the notebook
 workspace, `mip` Python client, and JupyterHub and single-user images. Examples come from the
-private `mip-examples` repo, synced by mip-infra onto one read-only volume that the notebook
+public `mip-examples` repo, synced by mip-infra onto one read-only volume that the notebook
 operator mounts.
 The client sends requests through **platform-backend**, which applies platform
 access controls and delegates federated computation to **Exaflow**:

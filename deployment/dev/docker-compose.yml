@@ -196,7 +196,7 @@ services:
       MIP_NOTEBOOK: ${MIP_NOTEBOOK:-Welcome.ipynb}
       JUPYTER_ENABLE_LAB: "yes"
     volumes:
-      # Optional: a local checkout of the private mip-examples repo, read-only, at the
+      # Optional: a local checkout of the public mip-examples repo, read-only, at the
       # path the notebook operator uses in the clusters.
       - ${MIP_EXAMPLES_DIR:-./mip-examples}:/home/jovyan/work/.mip-examples/examples:ro
     depends_on:

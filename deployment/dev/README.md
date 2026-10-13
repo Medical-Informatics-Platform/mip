@@ -50,8 +50,8 @@
 
     JupyterLab uses the compose backend URL `http://platform-backend:8080/services` inside Docker. It is published on `127.0.0.1` only; change `JUPYTER_TOKEN` in `.env` if the host is shared. With `AUTHENTICATION=1`, set `MIP_TOKEN` in `.env` to a Keycloak access token so the notebook client can call the backend.
 
-    Examples live in the private repo `Medical-Informatics-Platform/mip-examples`. To have them
-    locally, run `git clone git@github.com:Medical-Informatics-Platform/mip-examples.git mip-examples`
+    Examples live in the public repo `Medical-Informatics-Platform/mip-examples`. To have them
+    locally, run `git clone https://github.com/Medical-Informatics-Platform/mip-examples.git mip-examples`
     in this folder (or set `MIP_EXAMPLES_DIR`) before the first `./start.sh`, then open
     `examples/feres_analysis.ipynb` (or set `MIP_NOTEBOOK=examples/feres_analysis.ipynb` in `.env`).
     They are mounted read-only; copy one into `scratch/` to edit it. Without a checkout, Docker

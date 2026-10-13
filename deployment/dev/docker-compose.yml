@@ -193,8 +193,12 @@ services:
       PLATFORM_BACKEND_URL: http://platform-backend:8080/services
       MIP_TOKEN: "${MIP_TOKEN:-}"
       JUPYTER_TOKEN: "${JUPYTER_TOKEN:-dev}"
-      MIP_NOTEBOOK: workspace/examples/feres_analysis.ipynb
+      MIP_NOTEBOOK: ${MIP_NOTEBOOK:-Welcome.ipynb}
       JUPYTER_ENABLE_LAB: "yes"
+    volumes:
+      # Optional: a local checkout of the private mip-examples repo, read-only, at the
+      # path the notebook operator uses in the clusters.
+      - ${MIP_EXAMPLES_DIR:-./mip-examples}:/home/jovyan/work/.mip-examples/examples:ro
     depends_on:
       - platform-backend
     restart: unless-stopped

@@ -52,8 +52,11 @@
 
     Examples live in the private repo `Medical-Informatics-Platform/mip-examples`. To have them
     locally, run `git clone git@github.com:Medical-Informatics-Platform/mip-examples.git mip-examples`
-    in this folder (or set `MIP_EXAMPLES_DIR`), then open `examples/feres_analysis.ipynb`.
-    They are mounted read-only; copy one into `scratch/` to edit it.
+    in this folder (or set `MIP_EXAMPLES_DIR`) before the first `./start.sh`, then open
+    `examples/feres_analysis.ipynb` (or set `MIP_NOTEBOOK=examples/feres_analysis.ipynb` in `.env`).
+    They are mounted read-only; copy one into `scratch/` to edit it. Without a checkout, Docker
+    creates an empty, root-owned `mip-examples` folder and `examples/` stays empty; remove that
+    folder with `sudo rmdir mip-examples` before cloning.
 
 5. To stop the MIP stack run the 'stop.sh' script to stop all the containers:
     ```

@@ -9,7 +9,9 @@ text so researchers can develop and revisit reproducible federated analyses.
 1. Open the notebook entry point in the MIP portal. Notebook access requires
    JupyterHub to be configured for the installation.
 2. Open `Welcome.ipynb` and run its cells to verify the platform connection.
-3. Browse the supplied examples and copy an example into `scratch/` to adapt it.
+3. Browse the examples in `examples/` (read-only, shared by every notebook and updated
+   from the mip-examples repo). To adapt one, open it and use *File > Save Notebook As*
+   into `scratch/`.
 4. Discover data models, datasets, and variables, build an analysis selection,
    apply filters and preprocessing, and run algorithms with the `mip` client.
 5. Save personal notebooks and analysis scripts in `scratch/`.

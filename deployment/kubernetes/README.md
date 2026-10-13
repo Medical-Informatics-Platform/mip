@@ -82,6 +82,8 @@ Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there ar
 * `platform-ui`, `platform-backend`, `platformBackendDatabase`: container images and component specific options (including the shared ingress/tls settings and PVC sizes).
 * `platform-ui.notebook`: enables the `/notebook` iframe route in platform-ui and wires nginx to the in-cluster JupyterHub service.
 * `jupyterhub`: JupyterHub and single-user Jupyter images, hub resources, ingress, storage, crypt key, and notebook resource requests/limits. Rendered only when `platform-ui.notebook.enabled` is true, which also requires `keycloak.enabled`. Notebook traffic for the portal iframe should use platform-ui's `/notebook/` proxy; keep `jupyterhub.ingress.enabled: false` unless you need a separate admin-only host.
+  Notebook examples are mounted only in operator mode on MIP infra clusters (mip-infra
+  `common/examples`). KubeSpawner installs start without them.
 * `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`).
 
 Copy `values.yaml` to a new file (for example `my-values.yaml`) and edit it in-place. A few important knobs:

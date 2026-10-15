@@ -248,7 +248,7 @@ sudo chown -R mipadmin:mipadmin /opt/mip
 cp /opt/mip/deployment/kubernetes/values.yaml /opt/mip/deployment/kubernetes/my-values.yaml
 ```
 
-Use the MIP 9.2.0 release checkout when available. Edit `my-values.yaml` for your
+Use the MIP 9.2.1 release checkout when available. Edit `my-values.yaml` for your
 installation, including image versions, ingress settings, storage classes, and
 external authentication. On microk8s set `cluster.managed: false`; on managed
 clusters set it to `true` and choose the appropriate managed storage class.

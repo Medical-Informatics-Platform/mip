@@ -1,6 +1,6 @@
 # Backup and Recovery
 
-This guide covers the MIP 9.2.0 Kubernetes web and notebook stack and the
+This guide covers the MIP 9.2.1 Kubernetes web and notebook stack and the
 Exaflow data held by participating sites. Persistent data can reside on several
 nodes or in managed storage. Back up the actual PVCs and site data, together
 with the configuration needed to recover them.

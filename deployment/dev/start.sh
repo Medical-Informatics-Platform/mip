@@ -10,7 +10,7 @@ for _ in {1..30}; do
   if printf "%s" "${response}" | grep -q "\"code\"[[:space:]]*:[[:space:]]*\"dementia\""; then
     echo "Data model check passed: dementia is available."
     echo "MIP UI: http://localhost"
-    echo "JupyterLab: http://localhost:8888/lab/tree/workspace/examples/feres_analysis.ipynb?token=<JUPYTER_TOKEN from .env, default dev>"
+    echo "JupyterLab: http://localhost:8888/lab/tree/Welcome.ipynb?token=<JUPYTER_TOKEN from .env, default dev>"
     exit 0
   fi
   sleep 2

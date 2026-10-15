@@ -108,7 +108,7 @@ pipelines, run federated algorithms, and document results alongside Python code.
 Cohort Scout can assist with notebook creation and explanation.
 
 - [Notebook getting-started guide](documentation/notebooks.md)
-- [MIP Jupyter workspace and Python client](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.1.1)
+- [MIP Jupyter workspace and Python client](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.2.1)
 
 # Data Management
 

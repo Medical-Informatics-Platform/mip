@@ -195,6 +195,10 @@ services:
       JUPYTER_TOKEN: "${JUPYTER_TOKEN:-dev}"
       MIP_NOTEBOOK: ${MIP_NOTEBOOK:-Welcome.ipynb}
       JUPYTER_ENABLE_LAB: "yes"
+    # The entrypoint links examples/ only when .mip-examples is itself a mount point,
+    # as the operator's claim mount is in the clusters.
+    tmpfs:
+      - /home/jovyan/work/.mip-examples:mode=755
     volumes:
       # Optional: a local checkout of the public mip-examples repo, read-only, at the
       # path the notebook operator uses in the clusters.

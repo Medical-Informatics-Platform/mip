@@ -61,8 +61,9 @@ and algorithm execution through the platform backend. A welcome notebook,
 example analyses, and client documentation help researchers get started while
 patient-level records remain at the contributing sites.
 
-The new [mip-jupyter repository](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.1.1)
-provides the notebook workspace, Python client, and Jupyter images.
+The new [mip-jupyter repository](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.2.1)
+provides the notebook workspace, Python client, and Jupyter images. Example notebooks
+live in the [mip-examples repository](https://github.com/Medical-Informatics-Platform/mip-examples).
 
 ## Support agent for notebook creation and explanation
 
@@ -109,6 +110,7 @@ Cohort Scout can assist with notebook creation and explanation.
 
 - [Notebook getting-started guide](documentation/notebooks.md)
 - [MIP Jupyter workspace and Python client](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.2.1)
+- [MIP example notebooks](https://github.com/Medical-Informatics-Platform/mip-examples)
 
 # Data Management
 

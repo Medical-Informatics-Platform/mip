@@ -45,7 +45,7 @@ platform-backend:
 platformBackendDatabase:
   image:
     repository: postgres
-    tag: 18.3-alpine
+    tag: 18.6-alpine
   persistence:
     size: 1Gi
 

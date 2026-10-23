@@ -86,6 +86,10 @@ jupyterhub:
   codex:
     baseUrl: ""
     model: ""
+  # Stop notebooks idle this many seconds (0 = never), checked every cullEvery
+  # seconds. User files stay on their volume. Older hub images ignore both.
+  cullIdleTimeout: 3600
+  cullEvery: 600
   singleuser:
     image:
       repository: hbpmip/mip-jupyter

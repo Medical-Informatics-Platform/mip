@@ -236,6 +236,14 @@ spec:
                 secretKeyRef:
                   name: jupyterhub-crypt
                   key: crypt-key
+            # The hub database lives on jupyterhub-claim0, so user servers can
+            # keep running while the hub restarts. Older hub images ignore it.
+            - name: JUPYTERHUB_CLEANUP_SERVERS
+              value: "false"
+            - name: JUPYTERHUB_CULL_IDLE_TIMEOUT
+              value: {{ default 0 $jupyterHub.cullIdleTimeout | quote }}
+            - name: JUPYTERHUB_CULL_EVERY
+              value: {{ default 600 $jupyterHub.cullEvery | quote }}
           volumeMounts:
             - name: jupyterhub-claim0
               mountPath: /srv/jupyterhub

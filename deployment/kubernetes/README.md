@@ -84,7 +84,7 @@ Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there ar
 * `jupyterhub`: JupyterHub and single-user Jupyter images, hub resources, ingress, storage, crypt key, and notebook resource requests/limits. Rendered only when `platform-ui.notebook.enabled` is true, which also requires `keycloak.enabled`. Notebook traffic for the portal iframe should use platform-ui's `/notebook/` proxy; keep `jupyterhub.ingress.enabled: false` unless you need a separate admin-only host.
   Notebook examples are mounted only in operator mode on MIP infra clusters (mip-infra
   `common/examples`). KubeSpawner installs start without them.
-* `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`).
+* `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`), and `cliClientId` for using MIP from users' own computers (below).
 
 Copy `values.yaml` to a new file (for example `my-values.yaml`) and edit it in-place. A few important knobs:
 
@@ -137,6 +137,12 @@ If you deploy behind a reverse proxy or load balancer, forward the standard `X-F
 **WARNING!**: In **ANY** case, when you use an **EXTERNAL** KeyCloak service (i.e. iam.ebrains.eu), make sure that you use the correct *CLIENT_ID* and *CLIENT_SECRET* to match the MIP instance you're deploying!
 
 After tailoring `values.yaml` you can deploy the UI Helm chart. We still recommend deploying the engine Helm charts first, before installing the UI components.
+
+### Using MIP from users' own computers
+
+The `mip` Python client signs in through a **public** Keycloak client of its own, one per federation, e.g. `mip-cli-<federation>`. Users create a token on the portal's account page, or run `mip login`, and the client renews access with Keycloak by itself. Set the client's ID in `keycloak.cliClientId`; leave it empty to keep the feature off (the account page then hides the guide).
+
+The client needs, in Keycloak: client authentication off; standard flow on with PKCE `S256`, redirect URI exactly `https://<global.publicHost>/account` (no wildcard) and web origin `https://<global.publicHost>`; the OAuth 2.0 Device Authorization Grant on; Full scope allowed; the `roles` client scope set to *Optional* (so other clients' and realm roles stay out of its tokens); a copy of the federation client's *User Client Role* mapper (client `KEYCLOAK_CLIENT_ID`, claim `authorities`); an *Audience* mapper for that client; the `offline_access` scope; and a *Client Offline Session Max* (e.g. 30–90 days). Keycloak applies offline maximums only when the realm's *Offline Session Max Limited* is on (and caps the client's at the realm's *Offline Session Max*); otherwise only the offline idle timeout ever signs a computer out. Users and roles stay on the federation's client.
 
 
 ### Microk8s installation

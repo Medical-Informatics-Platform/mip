@@ -13,6 +13,11 @@
 {{- $keycloakAuthUrl := include "mip.keycloakAuthUrl" . -}}
 {{- $publicHost := .Values.global.publicHost -}}
 {{- $useOperator := eq (default "kubespawner" $jupyterHub.spawner) "operator" -}}
+{{- $apiProxy := default (dict) $jupyterHub.apiProxy -}}
+{{- $useApiProxy := eq (toString $apiProxy.enabled) "true" -}}
+{{- if and $useApiProxy (not $useOperator) -}}
+{{- fail "jupyterhub.apiProxy.enabled requires jupyterhub.spawner: operator: the proxy only forwards the operator spawner's requests" -}}
+{{- end -}}
 {{- if $jupyterHub.cryptKey }}
 ---
 # Without jupyterhub.cryptKey, create the secret out-of-band (see README) so the
@@ -64,7 +69,7 @@ rules:
   # the per-server API token Secret, owned by its Notebook.
   - apiGroups: ["notebooks.mip.ebrains.eu"]
     resources: ["notebooks"]
-    verbs: ["get", "list", "watch", "create", "delete"]
+    verbs: ["get", "create", "delete"]
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["create"]
@@ -157,6 +162,11 @@ spec:
         component: hub
     spec:
       serviceAccountName: jupyterhub
+{{- if $useApiProxy }}
+      # kube-api below replaces the automounted token, so the hub's Kubernetes
+      # client talks to the notebook API proxy instead of the API server.
+      automountServiceAccountToken: false
+{{- end }}
 {{- if eq (toString .Values.cluster.managed) "false" }}
       nodeSelector:
         master: "true"
@@ -165,6 +175,29 @@ spec:
         - name: jupyterhub-claim0
           persistentVolumeClaim:
             claimName: jupyterhub-claim0
+{{- if $useApiProxy }}
+        # Same layout as the automounted ServiceAccount volume, with the proxy's
+        # CA instead of the cluster's. 3607 is what the kubelet itself requests:
+        # the API server extends such tokens, so the hub's long-lived client,
+        # which reads the token once, keeps working. Any other value yields a
+        # token that really expires.
+        - name: kube-api
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: {{ $apiProxy.tokenExpirationSeconds }}
+              - configMap:
+                  name: {{ $apiProxy.caConfigMap | quote }}
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+              - downwardAPI:
+                  items:
+                    - path: namespace
+                      fieldRef:
+                        fieldPath: metadata.namespace
+{{- end }}
       containers:
         - name: jupyterhub
           image: {{ $hubImage | quote }}
@@ -182,6 +215,14 @@ spec:
                   fieldPath: metadata.namespace
             - name: JUPYTERHUB_SPAWNER
               value: {{ ternary "operator" "kubespawner" $useOperator | quote }}
+{{- if $useApiProxy }}
+            # In-cluster config reads these; the proxy forwards only the
+            # spawner's requests to the API server.
+            - name: KUBERNETES_SERVICE_HOST
+              value: {{ $apiProxy.host | quote }}
+            - name: KUBERNETES_SERVICE_PORT
+              value: {{ $apiProxy.port | quote }}
+{{- end }}
             - name: JUPYTER_SINGLEUSER_IMAGE
               value: {{ $singleuserImage | quote }}
 {{- if eq (toString .Values.cluster.managed) "false" }}
@@ -247,6 +288,11 @@ spec:
           volumeMounts:
             - name: jupyterhub-claim0
               mountPath: /srv/jupyterhub
+{{- if $useApiProxy }}
+            - name: kube-api
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+{{- end }}
 {{- if $useOperator }}
 
 ---

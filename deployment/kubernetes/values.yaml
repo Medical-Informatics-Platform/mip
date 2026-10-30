@@ -78,6 +78,19 @@ jupyterhub:
     # mip-infra-staging's out-of-band RBAC), so the GitOps tool needs no
     # RBAC write. The rules must match the spawner mode.
     create: true
+  # operator only: send the hub's Kubernetes client to mip-infra's notebook
+  # API proxy, which forwards only the spawner's requests, instead of the API
+  # server. caConfigMap holds the proxy's CA under ca.crt (mip-infra copies it
+  # into each federation). The hub reads the CA once: restart it after a
+  # rotation. Keep tokenExpirationSeconds at 3607, what the kubelet requests
+  # for the default mount: the API server extends such tokens. Any other value
+  # yields a token that really expires, and the hub reads it once per client.
+  apiProxy:
+    enabled: false
+    host: notebook-api-proxy.mip-notebooks-system.svc.cluster.local
+    port: 443
+    caConfigMap: mip-notebooks-ca
+    tokenExpirationSeconds: 3607
   # OpenAI-compatible inference server for the Jupyter AI Codex persona.
   # baseUrl ends in /v1; empty leaves Codex unconfigured. Point it at a proxy
   # (e.g. mip-infra-staging's athena-proxy) to keep the real server URL out of

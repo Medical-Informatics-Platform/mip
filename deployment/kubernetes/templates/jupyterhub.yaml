@@ -12,9 +12,19 @@
 {{- $keycloakRealm := default "MIP" .Values.keycloak.realm -}}
 {{- $keycloakAuthUrl := include "mip.keycloakAuthUrl" . -}}
 {{- $publicHost := .Values.global.publicHost -}}
-{{- $useOperator := eq (default "kubespawner" $jupyterHub.spawner) "operator" -}}
+{{- $spawner := default "kubespawner" $jupyterHub.spawner -}}
+{{- if not (has $spawner (list "kubespawner" "operator" "operator-api")) -}}
+{{- fail (printf "jupyterhub.spawner must be kubespawner, operator or operator-api, not %q" $spawner) -}}
+{{- end -}}
+{{- /* Both operator modes render the NotebookProfile; operator-api also drops the hub's Kubernetes access. */ -}}
+{{- $useOperator := has $spawner (list "operator" "operator-api") -}}
+{{- $useOperatorApi := eq $spawner "operator-api" -}}
+{{- $operatorApi := default (dict) $jupyterHub.operatorApi -}}
 {{- $apiProxy := default (dict) $jupyterHub.apiProxy -}}
 {{- $useApiProxy := eq (toString $apiProxy.enabled) "true" -}}
+{{- if and $useApiProxy $useOperatorApi -}}
+{{- fail "jupyterhub.apiProxy.enabled does not apply to jupyterhub.spawner: operator-api, which has no Kubernetes client: unset it" -}}
+{{- end -}}
 {{- if and $useApiProxy (not $useOperator) -}}
 {{- fail "jupyterhub.apiProxy.enabled requires jupyterhub.spawner: operator: the proxy only forwards the operator spawner's requests" -}}
 {{- end -}}
@@ -55,7 +65,8 @@ metadata:
   name: jupyterhub
   namespace: {{ $namespace }}
 
-{{- if ne (toString $jupyterHub.rbac.create) "false" }}
+{{- /* operator-api: the hub has no Kubernetes permissions at all. */ -}}
+{{- if and (ne (toString $jupyterHub.rbac.create) "false") (not $useOperatorApi) }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -166,6 +177,10 @@ spec:
       # kube-api below replaces the automounted token, so the hub's Kubernetes
       # client talks to the notebook API proxy instead of the API server.
       automountServiceAccountToken: false
+{{- else if $useOperatorApi }}
+      # No Kubernetes credentials: the hub only holds the audience-bound token
+      # in notebook-api below, which the API server rejects.
+      automountServiceAccountToken: false
 {{- end }}
 {{- if eq (toString .Values.cluster.managed) "false" }}
       nodeSelector:
@@ -198,6 +213,22 @@ spec:
                       fieldRef:
                         fieldPath: metadata.namespace
 {{- end }}
+{{- if $useOperatorApi }}
+        # Token for the notebook operator's spawn API. Its audience is not the
+        # API server's, so the API server rejects it; the kubelet rotates it.
+        - name: notebook-api
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  audience: {{ $operatorApi.audience | quote }}
+                  expirationSeconds: {{ $operatorApi.tokenExpirationSeconds }}
+              - configMap:
+                  name: {{ $operatorApi.caConfigMap | quote }}
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+{{- end }}
       containers:
         - name: jupyterhub
           image: {{ $hubImage | quote }}
@@ -214,7 +245,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: JUPYTERHUB_SPAWNER
-              value: {{ ternary "operator" "kubespawner" $useOperator | quote }}
+              value: {{ $spawner | quote }}
 {{- if $useApiProxy }}
             # In-cluster config reads these; the proxy forwards only the
             # spawner's requests to the API server.
@@ -222,6 +253,14 @@ spec:
               value: {{ $apiProxy.host | quote }}
             - name: KUBERNETES_SERVICE_PORT
               value: {{ $apiProxy.port | quote }}
+{{- end }}
+{{- if $useOperatorApi }}
+            - name: NOTEBOOK_API_URL
+              value: {{ $operatorApi.url | quote }}
+            - name: NOTEBOOK_API_TOKEN_FILE
+              value: /var/run/secrets/mip-notebook-operator/token
+            - name: NOTEBOOK_API_CA_FILE
+              value: /var/run/secrets/mip-notebook-operator/ca.crt
 {{- end }}
             - name: JUPYTER_SINGLEUSER_IMAGE
               value: {{ $singleuserImage | quote }}
@@ -291,6 +330,11 @@ spec:
 {{- if $useApiProxy }}
             - name: kube-api
               mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+{{- end }}
+{{- if $useOperatorApi }}
+            - name: notebook-api
+              mountPath: /var/run/secrets/mip-notebook-operator
               readOnly: true
 {{- end }}
 {{- if $useOperator }}

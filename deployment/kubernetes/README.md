@@ -125,6 +125,8 @@ For Kubernetes, make sure the images set in `jupyterhub.image` and `jupyterhub.s
 
 With `jupyterhub.spawner: operator`, set `jupyterhub.apiProxy.enabled: true` on MIP infra clusters to send the hub's Kubernetes client to mip-infra's notebook API proxy instead of the API server. The proxy allows only the spawner's requests (get, create, delete on `Notebook`s; create on `Secret`s) and forwards them with the hub's ServiceAccount token. The chart replaces the automounted ServiceAccount volume with one carrying the proxy's CA from the `mip-notebooks-ca` ConfigMap (`jupyterhub.apiProxy.caConfigMap`), which mip-infra copies into each federation. The hub reads that CA once, so restart the hub after a CA rotation. Rendering fails if `apiProxy.enabled` is set with any other spawner.
 
+`jupyterhub.spawner: operator-api` removes the hub's Kubernetes access entirely. The hub creates and deletes notebooks through the notebook operator's HTTPS spawn API (`jupyterhub.operatorApi.url`) instead of the Kubernetes API, and the chart renders no Role or RoleBinding, whatever `jupyterhub.rbac.create` says. The hub pod gets no ServiceAccount token at the standard path; it authenticates with a projected token bound to `jupyterhub.operatorApi.audience`, which the kubelet rotates and the API server rejects, and trusts the CA from the same `mip-notebooks-ca` ConfigMap. This mode needs a hub image with the operator-api spawner and the spawn API deployed by mip-infra. `apiProxy` does not apply to it; rendering fails if both are set.
+
 The reachability diagram from the legacy profiles is still valid as a reference for deciding the correct public URL:
 ![MIP Reachability Scheme](../docs/MIP_Configuration.png)
 

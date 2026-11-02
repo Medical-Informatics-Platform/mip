@@ -1,0 +1,88 @@
+name: Bump staging image tag
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: "Staging branch to update (staging-a or staging-b)"
+        required: true
+        type: string
+      key:
+        description: "Values key to set (platform-ui.image.tag, platform-backend.image.tag, jupyterhub.image.tag, jupyterhub.singleuser.image.tag)"
+        required: true
+        type: string
+      tag:
+        description: "New image tag value"
+        required: true
+        type: string
+    secrets:
+      app-id:
+        required: true
+      private-key:
+        required: true
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch
+        run: |
+          case "$BRANCH" in
+            staging-a|staging-b) ;;
+            *) echo "branch must be staging-a or staging-b, got: $BRANCH" >&2; exit 1 ;;
+          esac
+        env:
+          BRANCH: ${{ inputs.branch }}
+
+      - name: Validate key
+        run: |
+          case "$KEY" in
+            platform-ui.image.tag|platform-backend.image.tag|jupyterhub.image.tag|jupyterhub.singleuser.image.tag) ;;
+            *) echo "key not allowed: $KEY" >&2; exit 1 ;;
+          esac
+        env:
+          KEY: ${{ inputs.key }}
+
+      - name: Create GitHub App token
+        id: token
+        uses: actions/create-github-app-token@c04bb41e616d2a16422908c7ca1b81930f23079b
+        with:
+          app-id: ${{ secrets.app-id }}
+          private-key: ${{ secrets.private-key }}
+          repositories: mip
+
+      - name: Check out staging branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.branch }}
+          token: ${{ steps.token.outputs.token }}
+
+      - name: Commit and push with retry
+        env:
+          BRANCH: ${{ inputs.branch }}
+          KEY: ${{ inputs.key }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          commit_msg="chore(${BRANCH}): ${KEY} ${TAG}"
+          for attempt in 1 2 3 4 5; do
+            yq -i 'setpath(env(KEY) | split("."); strenv(TAG))' deployment/kubernetes/values.yaml
+            git add deployment/kubernetes/values.yaml
+            if [ -z "$(git status --porcelain)" ]; then
+              echo "No changes to commit (already up to date)."
+              break
+            fi
+            git commit -m "$commit_msg"
+            if git push origin "HEAD:${BRANCH}"; then
+              echo "Pushed on attempt ${attempt}."
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "Push failed after 5 attempts; giving up." >&2
+              exit 1
+            fi
+            echo "Push rejected (attempt ${attempt}/5); syncing to origin/${BRANCH} and retrying."
+            git fetch --force origin "${BRANCH}"
+            git reset --hard "origin/${BRANCH}"
+          done

@@ -13,7 +13,7 @@ mip:
 platform-ui:
   image:
     repository: hbpmip/platform-ui
-    tag: 2.1.1
+    tag: staging-c-b7bf87d
   ingress:
     enabled: true
     className: haproxy-public
@@ -41,18 +41,15 @@ platform-backend:
       size: 100Mi
     logs:
       size: 1Gi
-
 platformBackendDatabase:
   image:
     repository: postgres
     tag: 18.3-alpine
   persistence:
     size: 1Gi
-
 keycloak:
   enabled: true
   host: iam.ebrains.eu
-
 jupyterhub:
   # Leave empty and create the jupyterhub-crypt secret out-of-band (see README),
   # or set a stable value such as `openssl rand -hex 32`.

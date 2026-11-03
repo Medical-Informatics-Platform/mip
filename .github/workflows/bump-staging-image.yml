@@ -45,15 +45,18 @@ jobs:
 
       - name: Create GitHub App token
         id: token
-        uses: actions/create-github-app-token@c04bb41e616d2a16422908c7ca1b81930f23079b
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ secrets.app-id }}
           private-key: ${{ secrets.private-key }}
+          owner: Medical-Informatics-Platform
           repositories: mip
+          permission-contents: write
 
       - name: Check out staging branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          repository: Medical-Informatics-Platform/mip
           ref: ${{ inputs.branch }}
           token: ${{ steps.token.outputs.token }}
 

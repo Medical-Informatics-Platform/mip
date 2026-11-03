@@ -56,7 +56,7 @@ jupyterhub:
   cryptKey: ""
   image:
     repository: hbpmip/mip-jupyterhub
-    tag: sha-352fd5e@sha256:a20fc58209b738e62574b30bb906b57a5219492ffa77fcf732574596aa22e311
+    tag: staging-c-7602c9a
   resources:
     requests:
       cpu: 100m

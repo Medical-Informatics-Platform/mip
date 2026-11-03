@@ -20,14 +20,6 @@
 {{- $useOperator := has $spawner (list "operator" "operator-api") -}}
 {{- $useOperatorApi := eq $spawner "operator-api" -}}
 {{- $operatorApi := default (dict) $jupyterHub.operatorApi -}}
-{{- $apiProxy := default (dict) $jupyterHub.apiProxy -}}
-{{- $useApiProxy := eq (toString $apiProxy.enabled) "true" -}}
-{{- if and $useApiProxy $useOperatorApi -}}
-{{- fail "jupyterhub.apiProxy.enabled does not apply to jupyterhub.spawner: operator-api, which has no Kubernetes client: unset it" -}}
-{{- end -}}
-{{- if and $useApiProxy (not $useOperator) -}}
-{{- fail "jupyterhub.apiProxy.enabled requires jupyterhub.spawner: operator: the proxy only forwards the operator spawner's requests" -}}
-{{- end -}}
 {{- if $jupyterHub.cryptKey }}
 ---
 # Without jupyterhub.cryptKey, create the secret out-of-band (see README) so the
@@ -173,11 +165,7 @@ spec:
         component: hub
     spec:
       serviceAccountName: jupyterhub
-{{- if $useApiProxy }}
-      # kube-api below replaces the automounted token, so the hub's Kubernetes
-      # client talks to the notebook API proxy instead of the API server.
-      automountServiceAccountToken: false
-{{- else if $useOperatorApi }}
+{{- if $useOperatorApi }}
       # No Kubernetes credentials: the hub only holds the audience-bound token
       # in notebook-api below, which the API server rejects.
       automountServiceAccountToken: false
@@ -190,38 +178,16 @@ spec:
         - name: jupyterhub-claim0
           persistentVolumeClaim:
             claimName: jupyterhub-claim0
-{{- if $useApiProxy }}
-        # Same layout as the automounted ServiceAccount volume, with the proxy's
-        # CA instead of the cluster's. 3607 is what the kubelet itself requests:
-        # the API server extends such tokens, so the hub's long-lived client,
-        # which reads the token once, keeps working. Any other value yields a
-        # token that really expires.
-        - name: kube-api
-          projected:
-            sources:
-              - serviceAccountToken:
-                  path: token
-                  expirationSeconds: {{ $apiProxy.tokenExpirationSeconds }}
-              - configMap:
-                  name: {{ $apiProxy.caConfigMap | quote }}
-                  items:
-                    - key: ca.crt
-                      path: ca.crt
-              - downwardAPI:
-                  items:
-                    - path: namespace
-                      fieldRef:
-                        fieldPath: metadata.namespace
-{{- end }}
 {{- if $useOperatorApi }}
         # Token for the notebook operator's spawn API. Its audience is not the
         # API server's, so the API server rejects it; the kubelet rotates it.
+        # The spawn API accepts only this audience (a constant there).
         - name: notebook-api
           projected:
             sources:
               - serviceAccountToken:
                   path: token
-                  audience: {{ $operatorApi.audience | quote }}
+                  audience: mip-notebook-operator
                   expirationSeconds: {{ $operatorApi.tokenExpirationSeconds }}
               - configMap:
                   name: {{ $operatorApi.caConfigMap | quote }}
@@ -246,14 +212,6 @@ spec:
                   fieldPath: metadata.namespace
             - name: JUPYTERHUB_SPAWNER
               value: {{ $spawner | quote }}
-{{- if $useApiProxy }}
-            # In-cluster config reads these; the proxy forwards only the
-            # spawner's requests to the API server.
-            - name: KUBERNETES_SERVICE_HOST
-              value: {{ $apiProxy.host | quote }}
-            - name: KUBERNETES_SERVICE_PORT
-              value: {{ $apiProxy.port | quote }}
-{{- end }}
 {{- if $useOperatorApi }}
             - name: NOTEBOOK_API_URL
               value: {{ $operatorApi.url | quote }}
@@ -327,11 +285,6 @@ spec:
           volumeMounts:
             - name: jupyterhub-claim0
               mountPath: /srv/jupyterhub
-{{- if $useApiProxy }}
-            - name: kube-api
-              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-              readOnly: true
-{{- end }}
 {{- if $useOperatorApi }}
             - name: notebook-api
               mountPath: /var/run/secrets/mip-notebook-operator

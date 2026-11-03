@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       branch:
-        description: "Staging branch to update (staging-a or staging-b)"
+        description: "Staging branch to update (staging-b or staging-c)"
         required: true
         type: string
       key:
@@ -28,8 +28,8 @@ jobs:
       - name: Validate branch
         run: |
           case "$BRANCH" in
-            staging-a|staging-b) ;;
-            *) echo "branch must be staging-a or staging-b, got: $BRANCH" >&2; exit 1 ;;
+            staging-b|staging-c) ;;
+            *) echo "branch must be staging-b or staging-c, got: $BRANCH" >&2; exit 1 ;;
           esac
         env:
           BRANCH: ${{ inputs.branch }}

@@ -13,7 +13,7 @@ mip:
 platform-ui:
   image:
     repository: hbpmip/platform-ui
-    tag: staging-c-b7bf87d
+    tag: staging-c-fab3349
   ingress:
     enabled: true
     className: haproxy-public

@@ -56,7 +56,7 @@ jupyterhub:
   cryptKey: ""
   image:
     repository: hbpmip/mip-jupyterhub
-    tag: staging-c-7602c9a
+    tag: staging-c-3f60ad9
   resources:
     requests:
       cpu: 100m

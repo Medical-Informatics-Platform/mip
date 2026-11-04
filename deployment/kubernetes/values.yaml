@@ -31,7 +31,7 @@ platform-ui:
 platform-backend:
   image:
     repository: hbpmip/platform-backend
-    tag: staging-c-7493402
+    tag: staging-c-cda07d4
   config:
     logLevel: INFO
     logLevelFramework: INFO

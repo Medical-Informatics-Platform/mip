@@ -115,7 +115,7 @@ jupyterhub:
   singleuser:
     image:
       repository: hbpmip/mip-jupyter
-      tag: staging-c-7602c9a
+      tag: staging-c-3f60ad9
     storageCapacity: 2Gi
     resources:
       requests:

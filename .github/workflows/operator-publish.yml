@@ -15,14 +15,36 @@ env:
 # Registries use their own credentials; GITHUB_TOKEN only reads.
 permissions:
   contents: read
+  # The called scan workflows upload their SARIF to the Security tab.
+  security-events: write
 
 jobs:
   test:
     uses: ./.github/workflows/operator-ci.yml
 
+  sca:
+    name: Operator SCA
+    uses: ./.github/workflows/operator-sca.yml
+    secrets: inherit
+
+  container-scan:
+    name: Operator container scanning
+    uses: ./.github/workflows/operator-container-scan.yml
+    secrets: inherit
+
+  sast:
+    name: Operator SAST
+    uses: ./.github/workflows/operator-sast.yml
+    secrets: inherit
+
+  secrets-scan:
+    name: Operator secret scanning
+    uses: ./.github/workflows/operator-secrets-scan.yml
+    secrets: inherit
+
   build_and_push:
     name: Build ${{ matrix.image }} image and push to registries
-    needs: test
+    needs: [test, sca, container-scan, sast, secrets-scan]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

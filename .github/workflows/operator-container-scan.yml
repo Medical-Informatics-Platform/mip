@@ -7,6 +7,7 @@ on:
       - ci/**
       - .github/workflows/operator-container-scan.yml
   workflow_dispatch:
+  workflow_call: {}
   schedule:
     - cron: '0 2 * * 1' # weekly scan, every Monday 02:00 UTC
 

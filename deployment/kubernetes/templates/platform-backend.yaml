@@ -201,6 +201,8 @@ spec:
               value: {{ $keycloakAuthUrl | quote }}
             - name: KEYCLOAK_REALM
               value: {{ $keycloakRealm | quote }}
+            - name: KEYCLOAK_CLI_CLIENT_ID
+              value: {{ default "" .Values.keycloak.cliClientId | quote }}
             - name: KEYCLOAK_CLIENT_ID
               valueFrom:
                 secretKeyRef:

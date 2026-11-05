@@ -12,7 +12,14 @@
 {{- $keycloakRealm := default "MIP" .Values.keycloak.realm -}}
 {{- $keycloakAuthUrl := include "mip.keycloakAuthUrl" . -}}
 {{- $publicHost := .Values.global.publicHost -}}
-{{- $useOperator := eq (default "kubespawner" $jupyterHub.spawner) "operator" -}}
+{{- $spawner := default "kubespawner" $jupyterHub.spawner -}}
+{{- if not (has $spawner (list "kubespawner" "operator" "operator-api")) -}}
+{{- fail (printf "jupyterhub.spawner must be kubespawner, operator or operator-api, not %q" $spawner) -}}
+{{- end -}}
+{{- /* Both operator modes render the NotebookProfile; operator-api also drops the hub's Kubernetes access. */ -}}
+{{- $useOperator := has $spawner (list "operator" "operator-api") -}}
+{{- $useOperatorApi := eq $spawner "operator-api" -}}
+{{- $operatorApi := default (dict) $jupyterHub.operatorApi -}}
 {{- if $jupyterHub.cryptKey }}
 ---
 # Without jupyterhub.cryptKey, create the secret out-of-band (see README) so the
@@ -50,7 +57,8 @@ metadata:
   name: jupyterhub
   namespace: {{ $namespace }}
 
-{{- if ne (toString $jupyterHub.rbac.create) "false" }}
+{{- /* operator-api: the hub has no Kubernetes permissions at all. */ -}}
+{{- if and (ne (toString $jupyterHub.rbac.create) "false") (not $useOperatorApi) }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -64,7 +72,7 @@ rules:
   # the per-server API token Secret, owned by its Notebook.
   - apiGroups: ["notebooks.mip.ebrains.eu"]
     resources: ["notebooks"]
-    verbs: ["get", "list", "watch", "create", "delete"]
+    verbs: ["get", "create", "delete"]
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["create"]
@@ -157,6 +165,11 @@ spec:
         component: hub
     spec:
       serviceAccountName: jupyterhub
+{{- if $useOperatorApi }}
+      # No Kubernetes credentials: the hub only holds the audience-bound token
+      # in notebook-api below, which the API server rejects.
+      automountServiceAccountToken: false
+{{- end }}
 {{- if eq (toString .Values.cluster.managed) "false" }}
       nodeSelector:
         master: "true"
@@ -165,6 +178,23 @@ spec:
         - name: jupyterhub-claim0
           persistentVolumeClaim:
             claimName: jupyterhub-claim0
+{{- if $useOperatorApi }}
+        # Token for the notebook operator's spawn API. Its audience is not the
+        # API server's, so the API server rejects it; the kubelet rotates it.
+        # The spawn API accepts only this audience (a constant there).
+        - name: notebook-api
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  audience: mip-notebook-operator
+                  expirationSeconds: {{ $operatorApi.tokenExpirationSeconds }}
+              - configMap:
+                  name: {{ $operatorApi.caConfigMap | quote }}
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+{{- end }}
       containers:
         - name: jupyterhub
           image: {{ $hubImage | quote }}
@@ -181,7 +211,15 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: JUPYTERHUB_SPAWNER
-              value: {{ ternary "operator" "kubespawner" $useOperator | quote }}
+              value: {{ $spawner | quote }}
+{{- if $useOperatorApi }}
+            - name: NOTEBOOK_API_URL
+              value: {{ $operatorApi.url | quote }}
+            - name: NOTEBOOK_API_TOKEN_FILE
+              value: /var/run/secrets/mip-notebook-operator/token
+            - name: NOTEBOOK_API_CA_FILE
+              value: /var/run/secrets/mip-notebook-operator/ca.crt
+{{- end }}
             - name: JUPYTER_SINGLEUSER_IMAGE
               value: {{ $singleuserImage | quote }}
 {{- if eq (toString .Values.cluster.managed) "false" }}
@@ -247,10 +285,15 @@ spec:
           volumeMounts:
             - name: jupyterhub-claim0
               mountPath: /srv/jupyterhub
+{{- if $useOperatorApi }}
+            - name: notebook-api
+              mountPath: /var/run/secrets/mip-notebook-operator
+              readOnly: true
+{{- end }}
 {{- if $useOperator }}
 
 ---
-# Pod template for the MIP notebook operator (mip-jupyter/operator). The hub
+# Pod template for the MIP notebook operator (operator/ in this repository). The hub
 # cannot read or change it; the operator applies the security context itself.
 apiVersion: notebooks.mip.ebrains.eu/v1alpha1
 kind: NotebookProfile

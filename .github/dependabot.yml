@@ -1,0 +1,27 @@
+# Keeps the operator's Go modules, digest-pinned base images and SHA-pinned actions current.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /operator
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      # k8s.io and controller-runtime only build against matching versions.
+      kubernetes:
+        patterns:
+          - k8s.io/*
+          - sigs.k8s.io/*
+  - package-ecosystem: docker
+    directories: ["/operator"]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

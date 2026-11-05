@@ -1,9 +1,15 @@
-# Preview image for staging, tagged sha-<commit>. Staging pins it by digest in
-# mip-infra-staging; a release goes through operator-publish.yml instead.
-name: Publish operator preview image
+# The dev image: every operator change on master, tagged dev and sha-<commit>. Pin it by
+# digest, dev moves. A MIP release goes through operator-publish.yml instead.
+name: Publish operator dev image
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - operator/**
+      - .github/workflows/operator-dev.yml
+
+concurrency: operator-dev
 
 permissions:
   contents: read
@@ -24,7 +30,9 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: hbpmip/mip-notebook-operator
-          tags: type=sha
+          tags: |
+            type=raw,value=dev
+            type=sha
       - name: Build and push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:

@@ -73,7 +73,7 @@ jupyterhub:
   ingress:
     enabled: false
   # kubespawner: the hub creates notebook pods itself (Role on pods/PVCs).
-  # operator: the MIP notebook operator does (mip-jupyter/operator); the hub
+  # operator: the MIP notebook operator does (operator/ in this repository); the hub
   # only creates Notebook resources. Needs the operator and its CRDs installed.
   # operator-api: as operator, but the hub asks the operator's spawn API over
   # HTTPS (see operatorApi) and holds no Kubernetes credentials or Role.

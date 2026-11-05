@@ -1,0 +1,42 @@
+# Test fixture, not deployed: the deployed rules are in mip-infra
+# base/mip-infrastructure/notebook-operator/rbac.yaml. Change both together.
+#
+# Hand-maintained, not generated: kubebuilder markers would merge these rules
+# into manager-role. The spawn API (--mode=spawn-api) runs as
+# system:serviceaccount:mip-notebooks-system:mip-notebook-spawn-api.
+#
+# Bound per federation namespace (RoleBinding). No pods, PVCs, Secret reads or
+# list/watch: a compromised spawn API can start notebooks from the profiles the
+# hubs already use, and nothing else.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mip-notebook-spawn-api
+rules:
+- apiGroups:
+  - notebooks.mip.ebrains.eu
+  resources:
+  - notebooks
+  verbs:
+  - get
+  - create
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+---
+# Bound cluster-wide (ClusterRoleBinding): validates the hubs' tokens.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mip-notebook-spawn-api-tokenreview
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create

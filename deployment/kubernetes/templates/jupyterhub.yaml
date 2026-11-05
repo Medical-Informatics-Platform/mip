@@ -293,7 +293,7 @@ spec:
 {{- if $useOperator }}
 
 ---
-# Pod template for the MIP notebook operator (mip-jupyter/operator). The hub
+# Pod template for the MIP notebook operator (operator/ in this repository). The hub
 # cannot read or change it; the operator applies the security context itself.
 apiVersion: notebooks.mip.ebrains.eu/v1alpha1
 kind: NotebookProfile

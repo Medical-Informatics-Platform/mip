@@ -75,12 +75,24 @@ jupyterhub:
   # kubespawner: the hub creates notebook pods itself (Role on pods/PVCs).
   # operator: the MIP notebook operator does (mip-jupyter/operator); the hub
   # only creates Notebook resources. Needs the operator and its CRDs installed.
+  # operator-api: as operator, but the hub asks the operator's spawn API over
+  # HTTPS (see operatorApi) and holds no Kubernetes credentials or Role.
   spawner: kubespawner
   rbac:
     # false: an admin applies the hub Role/RoleBinding (e.g. with
     # mip-infra-staging's out-of-band RBAC), so the GitOps tool needs no
-    # RBAC write. The rules must match the spawner mode.
+    # RBAC write. The rules must match the spawner mode. Ignored with
+    # operator-api: no Role or RoleBinding is rendered.
     create: true
+  # operator-api only. Needs a hub image with the operator-api spawner and the
+  # spawn API deployed (mip-infra). The hub authenticates with a ServiceAccount
+  # token bound to the spawn API's audience: the kubelet rotates it, and the
+  # API server rejects it. caConfigMap holds the spawn API's CA under ca.crt
+  # (mip-infra copies it into each federation).
+  operatorApi:
+    url: https://mip-notebook-spawn-api.mip-notebooks-system.svc.cluster.local
+    caConfigMap: mip-notebooks-ca
+    tokenExpirationSeconds: 3600
   # OpenAI-compatible inference server for the Jupyter AI Codex persona.
   # baseUrl ends in /v1; empty leaves Codex unconfigured. Point it at a proxy
   # (e.g. mip-infra-staging's athena-proxy) to keep the real server URL out of

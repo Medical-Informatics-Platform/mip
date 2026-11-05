@@ -251,6 +251,8 @@ func addExamples(pod *corev1.Pod, claim, home string) {
 		}},
 	})
 	c := &pod.Spec.Containers[0]
+	// A path in the Linux container, not on the operator's OS, so never filepath.Join.
+	// nosemgrep: semgrep-rules.go.lang.correctness.use-filepath-join
 	c.VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{Name: "examples", MountPath: path.Join(home, "work/.mip-examples"), ReadOnly: true})
 }
 

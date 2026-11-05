@@ -1,0 +1,78 @@
+name: Operator SAST
+
+on:
+  pull_request:
+    paths:
+      - operator/**
+      - ci/**
+      - .github/workflows/operator-sast.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 1' # weekly scan, every Monday 02:00 UTC
+
+jobs:
+  sast:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # required for uploading SAST results to github security
+    env:
+      SEMGREP_CONFIG_RULESETS: >-
+        semgrep-rules/generic semgrep-rules/problem-based-packs semgrep-rules/bash semgrep-rules/python semgrep-rules/go auto
+        semgrep-rules/yaml semgrep-rules/package_managers p/default
+      OPENGREP_EXCLUDE: >-
+        *.sarif ci/ Dockerfile* deployment/ documentation/ README.md
+      OPENGREP_SARIF_OUTPUT: sast-semgrep-app.sarif
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 #v7.1.0
+        with:
+          python-version: '3.15.1'
+
+      - name: Setup tools
+        run: bash ci/setup-tools.sh --install-tool opengrep,semgrep-rules
+
+      - name: Run SAST scanning
+        run: python ci/sast_scan.py
+
+      - name: Upload SARIF to GitHub Security tab
+        if: ${{ !cancelled() && hashFiles(env.OPENGREP_SARIF_OUTPUT) != '' }}
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: ${{ env.OPENGREP_SARIF_OUTPUT }}
+          category: semgrep-app
+
+      - name: Encrypt SARIF report
+        id: encrypt
+        if: ${{ !cancelled() && hashFiles(env.OPENGREP_SARIF_OUTPUT) != '' }}
+        env:
+          PW: ${{ secrets.ARTIFACT_PASSWORD }}
+          OUT: ${{ env.OPENGREP_SARIF_OUTPUT }}.gpg
+        run: |
+          if [ -z "$PW" ]; then
+            echo "::warning title=SARIF report not uploaded::ARTIFACT_PASSWORD is not available in this run (Dependabot, Renovate or fork PR). Skipping encryption and upload."
+            rm -f -- "$OPENGREP_SARIF_OUTPUT"
+            exit 0
+          fi
+          printf '%s' "$PW" | gpg --symmetric --batch --yes --quiet \
+            --pinentry-mode loopback --passphrase-fd 0 \
+            --no-symkey-cache \
+            --cipher-algo AES256 \
+            --s2k-mode 3 --s2k-digest-algo SHA512 --s2k-count 65011712 \
+            --output "$OUT" -- "$OPENGREP_SARIF_OUTPUT"
+          rm -f -- "$OPENGREP_SARIF_OUTPUT"
+          echo "encrypted=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload encrypted SARIF artifact
+        if: ${{ !cancelled() && steps.encrypt.outputs.encrypted != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sast-scan-sarif-report
+          path: ${{ steps.encrypt.outputs.encrypted }}
+          retention-days: 30
+          if-no-files-found: error

@@ -1,0 +1,83 @@
+name: Operator SCA
+
+on:
+  pull_request:
+    paths:
+      - operator/**
+      - ci/**
+      - .github/workflows/operator-sca.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 1' # weekly SCA scan, every Monday 02:00 UTC
+
+jobs:
+  sca:
+    name: Software Composition Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # required for uploading SCA results to github security
+    env:
+      SCA_TARGET: operator
+      TRIVY_IGNOREFILE: ci/suppress_trivy.yaml
+      OSV_IGNOREFILE: ci/suppress_osv_scanner.toml
+      TRIVY_SARIF_OUTPUT: trivy-mip-notebook-operator.sarif
+      OSV_SARIF_OUTPUT: osv-scanner-mip-notebook-operator.sarif
+      SCA_MERGED_SARIF_OUTPUT: SCA-mip-notebook-operator-merged.sarif
+      # CVSS gate: fail at >= FAIL, warn between WARN and FAIL.
+      GATE_FAIL_THRESHOLD: "8.0"
+      GATE_WARN_THRESHOLD: "5.0"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 #v7.1.0
+        with:
+          # renovate: datasource=python-version depName=python
+          python-version: '3.15.1'
+
+      # Scans the committed lockfiles directly (operator/go.mod); no SBOM step.
+      - name: Setup tools
+        run: bash ci/setup-tools.sh --install-tool trivy,osv-scanner
+
+      - name: Run SCA tools
+        run: python ci/sca_scan.py
+
+      - name: Upload merged SARIF to GitHub Security tab
+        if: ${{ !cancelled() && hashFiles(env.SCA_MERGED_SARIF_OUTPUT) != '' }}
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: ${{ env.SCA_MERGED_SARIF_OUTPUT }}
+          category: sca-app
+
+      - name: Encrypt SARIF report
+        id: encrypt
+        if: ${{ !cancelled() && hashFiles(env.SCA_MERGED_SARIF_OUTPUT) != '' }}
+        env:
+          PW: ${{ secrets.ARTIFACT_PASSWORD }}
+          OUT: ${{ env.SCA_MERGED_SARIF_OUTPUT }}.gpg
+        run: |
+          if [ -z "$PW" ]; then
+            echo "::warning title=SARIF report not uploaded::ARTIFACT_PASSWORD is not available in this run (Dependabot, Renovate or fork PR). Skipping encryption and upload."
+            rm -f -- "$SCA_MERGED_SARIF_OUTPUT"
+            exit 0
+          fi
+          printf '%s' "$PW" | gpg --symmetric --batch --yes --quiet \
+            --pinentry-mode loopback --passphrase-fd 0 \
+            --no-symkey-cache \
+            --cipher-algo AES256 \
+            --s2k-mode 3 --s2k-digest-algo SHA512 --s2k-count 65011712 \
+            --output "$OUT" -- "$SCA_MERGED_SARIF_OUTPUT"
+          rm -f -- "$SCA_MERGED_SARIF_OUTPUT"
+          echo "encrypted=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload encrypted SARIF artifact
+        if: ${{ !cancelled() && steps.encrypt.outputs.encrypted != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sca-scan-sarif-report
+          path: ${{ steps.encrypt.outputs.encrypted }}
+          retention-days: 30
+          if-no-files-found: error

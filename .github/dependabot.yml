@@ -1,0 +1,15 @@
+# Keeps the digest-pinned operator base images and SHA-pinned actions current.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directories: ["/operator"]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

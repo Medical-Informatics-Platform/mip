@@ -52,6 +52,9 @@ platformBackendDatabase:
 keycloak:
   enabled: true
   host: iam.ebrains.eu
+  # Public Keycloak client for the mip Python client on users' own computers
+  # (account-page tokens and `mip login`). Empty: not offered. See README.
+  cliClientId: ""
 
 jupyterhub:
   # Leave empty and create the jupyterhub-crypt secret out-of-band (see README),

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"maps"
 	"path"
@@ -29,7 +30,6 @@ import (
 
 const (
 	notebookPort     = 8888
-	tokenKey         = "token"
 	homeVolume       = "home"
 	profileRetryWait = 30 * time.Second
 )
@@ -49,8 +49,6 @@ type NotebookReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods;persistentvolumeclaims,verbs=get;list;watch;create
 
 func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-
 	nb := &notebooksv1alpha1.Notebook{}
 	if err := r.Get(ctx, req.NamespacedName, nb); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -61,6 +59,28 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
+	pod := &corev1.Pod{}
+	err := r.Get(ctx, client.ObjectKeyFromObject(nb), pod)
+	if apierrors.IsNotFound(err) {
+		return r.start(ctx, nb)
+	}
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	// Same name, other owner: a KubeSpawner pod, or an earlier Notebook's. Its IP
+	// would send the hub to a server with another API token.
+	if !metav1.IsControlledBy(pod, nb) {
+		msg := fmt.Sprintf("pod %s exists and does not belong to this Notebook", pod.Name)
+		return ctrl.Result{}, r.setStatus(ctx, nb, notebooksv1alpha1.PhaseFailed, "", msg)
+	}
+
+	phase, url, msg := podStatus(pod)
+	return ctrl.Result{}, r.setStatus(ctx, nb, phase, url, msg)
+}
+
+// start creates the home and the pod. Only here is the profile needed: a running
+// pod does not depend on it, and "Failed" makes the hub stop the server.
+func (r *NotebookReconciler) start(ctx context.Context, nb *notebooksv1alpha1.Notebook) (ctrl.Result, error) {
 	profile := &notebooksv1alpha1.NotebookProfile{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: nb.Namespace, Name: nb.Spec.Profile}, profile)
 	if apierrors.IsNotFound(err) {
@@ -70,42 +90,40 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
-	pod := &corev1.Pod{}
-	err = r.Get(ctx, client.ObjectKeyFromObject(nb), pod)
-	if apierrors.IsNotFound(err) {
-		if err := r.ensurePVC(ctx, nb, profile); err != nil {
-			return ctrl.Result{}, err
-		}
-		pod = buildPod(nb, profile)
-		bound, err := r.examplesBound(ctx, nb.Namespace)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		examples := "not bound"
-		switch {
-		case bound && !profile.Spec.Storage.FixOwnership:
-			// Without fix-home-perm the runtime creates work/ root-owned for the nested mount.
-			examples = "skipped: fixOwnership is false"
-		case bound:
-			addExamples(pod, r.ExamplesClaim, profile.Spec.Storage.MountPath)
-			examples = "mounted"
-		}
-		if err := controllerutil.SetControllerReference(nb, pod, r.Scheme); err != nil {
-			return ctrl.Result{}, err
-		}
-		if err := r.Create(ctx, pod); err != nil && !apierrors.IsAlreadyExists(err) {
-			return ctrl.Result{}, err
-		}
-		log.Info("created notebook pod", "pod", pod.Name, "examplesClaim", r.ExamplesClaim, "examples", examples)
-		return ctrl.Result{}, r.setStatus(ctx, nb, notebooksv1alpha1.PhasePending, "", "pod created")
+	if err := r.createPod(ctx, nb, profile); err != nil {
+		// Pending, not Failed: a quota can free up. The message reaches the spawn
+		// page, which otherwise shows nothing until the hub's timeout.
+		return ctrl.Result{}, errors.Join(err, r.setStatus(ctx, nb, notebooksv1alpha1.PhasePending, "", "cannot create pod: "+err.Error()))
 	}
+	return ctrl.Result{}, r.setStatus(ctx, nb, notebooksv1alpha1.PhasePending, "", "pod created")
+}
+
+func (r *NotebookReconciler) createPod(ctx context.Context, nb *notebooksv1alpha1.Notebook, profile *notebooksv1alpha1.NotebookProfile) error {
+	if err := r.ensurePVC(ctx, nb, profile); err != nil {
+		return err
+	}
+	pod := buildPod(nb, profile)
+	bound, err := r.examplesBound(ctx, nb.Namespace)
 	if err != nil {
-		return ctrl.Result{}, err
+		return err
 	}
-
-	phase, url, msg := podStatus(pod)
-	return ctrl.Result{}, r.setStatus(ctx, nb, phase, url, msg)
+	examples := "not bound"
+	switch {
+	case bound && !profile.Spec.Storage.FixOwnership:
+		// Without fix-home-perm the runtime creates work/ root-owned for the nested mount.
+		examples = "skipped: fixOwnership is false"
+	case bound:
+		addExamples(pod, r.ExamplesClaim, profile.Spec.Storage.MountPath)
+		examples = "mounted"
+	}
+	if err := controllerutil.SetControllerReference(nb, pod, r.Scheme); err != nil {
+		return err
+	}
+	if err := r.Create(ctx, pod); err != nil && !apierrors.IsAlreadyExists(err) {
+		return err
+	}
+	logf.FromContext(ctx).Info("created notebook pod", "pod", pod.Name, "examplesClaim", r.ExamplesClaim, "examples", examples)
+	return nil
 }
 
 // ensurePVC creates the user's home volume. It is never owned, updated or
@@ -155,8 +173,8 @@ func buildPod(nb *notebooksv1alpha1.Notebook, profile *notebooksv1alpha1.Noteboo
 				// pod waits in CreateContainerConfigError, shown as the message.
 				// The UID keeps out a Secret left by an earlier Notebook of the
 				// same name.
-				LocalObjectReference: corev1.LocalObjectReference{Name: nb.Name + "-" + string(nb.UID) + "-token"},
-				Key:                  tokenKey,
+				LocalObjectReference: corev1.LocalObjectReference{Name: nb.TokenSecretName()},
+				Key:                  notebooksv1alpha1.TokenSecretKey,
 			},
 		}})
 	}
@@ -294,6 +312,11 @@ func waitingMessage(pod *corev1.Pod) string {
 }
 
 func terminationMessage(pod *corev1.Pod) string {
+	for _, cs := range pod.Status.InitContainerStatuses {
+		if t := cs.State.Terminated; t != nil && t.ExitCode != 0 {
+			return strings.TrimSpace(fmt.Sprintf("init container %s exited with code %d: %s %s", cs.Name, t.ExitCode, t.Reason, t.Message))
+		}
+	}
 	for _, cs := range pod.Status.ContainerStatuses {
 		if t := cs.State.Terminated; t != nil {
 			return strings.TrimSpace(fmt.Sprintf("notebook exited with code %d: %s %s", t.ExitCode, t.Reason, t.Message))

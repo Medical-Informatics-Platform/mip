@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,6 +27,16 @@ import (
 
 	notebooksv1alpha1 "github.com/Medical-Informatics-Platform/mip/operator/api/v1alpha1"
 )
+
+// rejectPods fails pod creation as an admission plugin would.
+type rejectPods struct{ client.Client }
+
+func (c rejectPods) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if _, ok := obj.(*corev1.Pod); ok {
+		return apierrors.NewForbidden(corev1.Resource("pods"), obj.GetName(), errors.New("exceeded quota"))
+	}
+	return c.Client.Create(ctx, obj, opts...)
+}
 
 var _ = Describe("Notebook controller", func() {
 	var (
@@ -158,6 +170,68 @@ var _ = Describe("Notebook controller", func() {
 		Expect(phase).To(Equal(notebooksv1alpha1.PhaseFailed))
 		Expect(url).To(BeEmpty())
 		Expect(msg).To(ContainSubstring("code 137: OOMKilled"))
+	})
+
+	It("reports why the init container failed", func() {
+		pod := &corev1.Pod{Status: corev1.PodStatus{
+			Phase: corev1.PodFailed,
+			InitContainerStatuses: []corev1.ContainerStatus{{Name: "fix-home-perm", State: corev1.ContainerState{
+				Terminated: &corev1.ContainerStateTerminated{ExitCode: 1, Reason: "Error"},
+			}}},
+		}}
+		_, _, msg := podStatus(pod)
+		Expect(msg).To(Equal("init container fix-home-perm exited with code 1: Error"))
+	})
+
+	It("keeps a running notebook Running when its profile goes away", func() {
+		profile := newProfile()
+		Expect(k8sClient.Create(ctx, profile)).To(Succeed())
+		nb := newNotebook("profile-gone", nil)
+		Expect(k8sClient.Create(ctx, nb)).To(Succeed())
+		reconcileNB(nb)
+		pod := &corev1.Pod{}
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(nb), pod)).To(Succeed())
+		pod.Status.PodIP = "10.0.0.8"
+		pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+
+		Expect(k8sClient.Delete(ctx, profile)).To(Succeed())
+		reconcileNB(nb)
+		got := fetch(nb)
+		Expect(got.Status.Phase).To(Equal(notebooksv1alpha1.PhaseRunning))
+		Expect(got.Status.URL).To(Equal("http://10.0.0.8:8888"))
+	})
+
+	It("fails on a pod of the same name that it does not own", func() {
+		Expect(k8sClient.Create(ctx, newProfile())).To(Succeed())
+		nb := newNotebook("foreign", nil)
+		Expect(k8sClient.Create(ctx, nb)).To(Succeed())
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: nb.Name, Namespace: ns},
+			Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "notebook", Image: "kubespawner"}}},
+		}
+		Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+		pod.Status.PodIP = "10.0.0.9"
+		pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+
+		reconcileNB(nb)
+		got := fetch(nb)
+		Expect(got.Status.Phase).To(Equal(notebooksv1alpha1.PhaseFailed))
+		Expect(got.Status.URL).To(BeEmpty())
+		Expect(got.Status.Message).To(ContainSubstring("does not belong"))
+	})
+
+	It("shows why the pod cannot be created, and retries", func() {
+		Expect(k8sClient.Create(ctx, newProfile())).To(Succeed())
+		nb := newNotebook("rejected", nil)
+		Expect(k8sClient.Create(ctx, nb)).To(Succeed())
+		reconciler.Client = rejectPods{k8sClient}
+		_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(nb)})
+		Expect(err).To(HaveOccurred())
+		got := fetch(nb)
+		Expect(got.Status.Phase).To(Equal(notebooksv1alpha1.PhasePending))
+		Expect(got.Status.Message).To(ContainSubstring("exceeded quota"))
 	})
 
 	It("adds the root init container only when asked", func() {

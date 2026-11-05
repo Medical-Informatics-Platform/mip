@@ -72,6 +72,14 @@ type Notebook struct {
 	Status NotebookStatus `json:"status,omitempty"`
 }
 
+// TokenSecretKey is the key of the API token in the token Secret.
+const TokenSecretKey = "token"
+
+// TokenSecretName is the name of the Notebook's token Secret.
+func (nb *Notebook) TokenSecretName() string {
+	return nb.Name + "-" + string(nb.UID) + "-token"
+}
+
 // +kubebuilder:object:root=true
 
 // NotebookList contains a list of Notebook.

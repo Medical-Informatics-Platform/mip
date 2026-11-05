@@ -115,17 +115,21 @@ Reconcile of a `Notebook`:
 
 1. Deleted: nothing to do. Pod and token Secret are owned by the `Notebook` and
    garbage collected.
-2. Load the profile. Missing: `Failed`, retried every 30s.
+2. No pod yet: load the profile. Missing: `Failed`, retried every 30s. A running
+   pod does not need its profile, so deleting one does not stop servers.
 3. Ensure PVC `claim-{user_server}`, KubeSpawner's name for the user's default
    server, so homes KubeSpawner created are reused. Never owned, updated or
    deleted, so home directories survive restarts.
 4. Ensure pod (bare pod, owned by the `Notebook`). A pod that ends is not
    recreated; the hub sees `Failed` and the user starts again. Until the hub
    has created the token Secret the kubelet holds the pod in
-   `CreateContainerConfigError`, reported as the message.
+   `CreateContainerConfigError`, reported as the message. If the API server
+   rejects the PVC or pod (quota, Pod Security), `Pending` with that error,
+   retried with backoff.
 5. Status from the pod: `Running` + `url` when Ready, `Pending` with the waiting
    reason (`ImagePullBackOff`, `Unschedulable`, ...), `Failed` with the
-   termination message.
+   termination message. A pod of that name the `Notebook` does not own, such as
+   one KubeSpawner left, is `Failed`: delete it before starting again.
 
 Profile edits apply from the next start; running pods are not touched.
 

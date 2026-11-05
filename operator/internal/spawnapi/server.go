@@ -2,7 +2,7 @@
 // notebook servers, so they hold no Kubernetes credential. It runs as its own
 // process (--mode=spawn-api) and ServiceAccount, never inside the controller:
 // the controller can create pods, so it must not listen where hubs reach it.
-// See docs/notebook-operator.md.
+// See documentation/notebook-operator.md.
 package spawnapi
 
 import (
@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"regexp"
@@ -34,10 +35,8 @@ const (
 	// server only sees the spawn API's.
 	RequestedByAnnotation = "notebooks.mip.ebrains.eu/requested-by"
 	maxBodyBytes          = 64 << 10
-	// Must match the pod the controller builds (internal/controller buildPod).
-	tokenKey       = "token"
-	maxNameLength  = 57
-	cleanupTimeout = 10 * time.Second
+	maxNameLength         = 57
+	cleanupTimeout        = 10 * time.Second
 )
 
 var (
@@ -218,7 +217,7 @@ func (s *Server) createSecret(ctx context.Context, nb *notebooksv1alpha1.Noteboo
 	defer cancel()
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      nb.Name + "-" + string(nb.UID) + "-token",
+			Name:      nb.TokenSecretName(),
 			Namespace: nb.Namespace,
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion: notebooksv1alpha1.GroupVersion.String(),
@@ -229,7 +228,7 @@ func (s *Server) createSecret(ctx context.Context, nb *notebooksv1alpha1.Noteboo
 			}},
 		},
 		Type: corev1.SecretTypeOpaque,
-		Data: map[string][]byte{tokenKey: []byte(token)},
+		Data: map[string][]byte{notebooksv1alpha1.TokenSecretKey: []byte(token)},
 	}
 	if err := s.Client.Create(ctx, secret); err != nil && !apierrors.IsAlreadyExists(err) {
 		return err
@@ -326,15 +325,7 @@ func validName(name string) error {
 }
 
 func sameSpec(a, b notebooksv1alpha1.NotebookSpec) bool {
-	if a.Profile != b.Profile || a.User != b.User || a.ServerName != b.ServerName || len(a.Env) != len(b.Env) {
-		return false
-	}
-	for k, v := range a.Env {
-		if w, ok := b.Env[k]; !ok || w != v {
-			return false
-		}
-	}
-	return true
+	return a.Profile == b.Profile && a.User == b.User && a.ServerName == b.ServerName && maps.Equal(a.Env, b.Env)
 }
 
 func statusOf(nb *notebooksv1alpha1.Notebook) ServerStatus {

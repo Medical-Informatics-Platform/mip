@@ -17,8 +17,12 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    uses: ./.github/workflows/operator-ci.yml
+
   build_and_push:
     name: Build ${{ matrix.image }} image and push to registries
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -54,11 +58,14 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Log in to EBRAINS HARBOR (retry)
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
         run: |
           for i in $(seq 1 ${{ env.RETRY_ATTEMPTS }}); do
-            echo "${{ secrets.HARBOR_PASSWORD }}" | \
+            printf '%s' "$HARBOR_PASSWORD" | \
             docker login ${{ env.HARBOR_REGISTRY }} \
-              -u "${{ secrets.HARBOR_USERNAME }}" --password-stdin && exit 0
+              -u "$HARBOR_USERNAME" --password-stdin && exit 0
             echo "Harbor login attempt $i failed; retrying in ${{ env.RETRY_SLEEP }}s..."
             sleep ${{ env.RETRY_SLEEP }}
           done

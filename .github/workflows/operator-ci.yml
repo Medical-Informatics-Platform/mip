@@ -5,10 +5,8 @@ on:
     paths:
       - operator/**
       - .github/workflows/operator-ci.yml
-  push:
-    branches: [master]
-    paths:
-      - operator/**
+  # On master and on release this runs from the publish workflows, before they push.
+  workflow_call:
 
 permissions:
   contents: read

@@ -27,6 +27,7 @@ def evaluate(sarif_paths):
         sarif_paths = [sarif_paths]
 
     max_score = 0.0
+    unscored = 0
     for path in sarif_paths:
         try:
             with open(path) as f:
@@ -48,8 +49,14 @@ def evaluate(sarif_paths):
                 score = severities.get(result["ruleId"])
                 if score is not None:
                     max_score = max(max_score, float(score))
+                else:
+                    unscored += 1
+
+    # The gate cannot judge these, so they must not read as a clean pass.
+    if unscored:
+        print(f"::warning title=Unscored findings::{unscored} result(s) in {', '.join(sarif_paths)} have no security-severity; the CVSS gate did not evaluate them.")
 
     return EvaluationResult(
             gate_failed=max_score >= GATE_FAIL_THRESHOLD,
-            gate_warn=GATE_WARN_THRESHOLD <= max_score < GATE_FAIL_THRESHOLD,
+            gate_warn=unscored > 0 or GATE_WARN_THRESHOLD <= max_score < GATE_FAIL_THRESHOLD,
         )

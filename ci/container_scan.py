@@ -61,7 +61,7 @@ def run_osv_scanner():
     if exit_code == 1:
         exit_code = 0  # OSV Scanner returns 1 if vulnerabilities are found, but we want to continue the pipeline
     if exit_code == 0:
-        drop_osv_unfixed()
+        exit_code = drop_osv_unfixed()
     return exit_code
 
 def drop_osv_unfixed():
@@ -72,9 +72,15 @@ def drop_osv_unfixed():
         "osv-scanner", "scan", "image", IMAGE_NAME,
         "--config", OSV_IGNOREFILE, "--format", "json",
     ]
-    out = subprocess.run(json_cmd, capture_output=True, text=True).stdout
+    scan = subprocess.run(json_cmd, capture_output=True, text=True)
+    # 0: nothing to filter. Not 1: no data, so keep every result rather than pass the gate.
+    if scan.returncode == 0:
+        return 0
+    if scan.returncode != 1:
+        logger.error(f"{RED}[!] osv-scanner JSON scan exit code {scan.returncode}: {scan.stderr}{RESET}")
+        return scan.returncode
     fixed = set()
-    for result in json.loads(out or "{}").get("results", []):
+    for result in json.loads(scan.stdout).get("results", []):
         for pkg in result.get("packages", []):
             name = pkg["package"]["name"]
             ecosystem = pkg["package"].get("ecosystem")
@@ -90,9 +96,12 @@ def drop_osv_unfixed():
     with open(OSV_SCA_SARIF_OUTPUT) as f:
         sarif = json.load(f)
     for run in sarif.get("runs", []):
-        run["results"] = [r for r in run.get("results", []) if (r.get("ruleId"), osv_package(r)) in fixed]
+        # A message that does not parse keeps its result: unknown is not unfixed.
+        run["results"] = [r for r in run.get("results", [])
+                          if osv_package(r) is None or (r.get("ruleId"), osv_package(r)) in fixed]
     with open(OSV_SCA_SARIF_OUTPUT, "w") as f:
         json.dump(sarif, f)
+    return 0
 
 def osv_package(result):
     # Message reads "Package 'name@version' is vulnerable to ...".

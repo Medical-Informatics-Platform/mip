@@ -5,36 +5,28 @@ set -u          # treat unset variables as an error
 
 trap 'echo "[setup-tools] ERROR: command failed (exit $?) at line $LINENO: $BASH_COMMAND" >&2' ERR
 
-# Tool versions and the SHA256 of the release asset we download.
-# The "# renovate:" markers let Renovate bump version and checksum together
-# (see renovate.json). When overriding a *_VERSION via env, the matching
+# Tool versions and the SHA256 of the release asset we download. Bumped by hand:
+# no update bot reads this file. When overriding a *_VERSION via env, the matching
 # *_SHA256 must be overridden as well or verification will fail.
 
-# renovate: datasource=github-release-attachments depName=aquasecurity/trivy
 TRIVY_VERSION="${TRIVY_VERSION:-v0.76.1}"
 TRIVY_SHA256="${TRIVY_SHA256:-c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0}"
 
-# renovate: datasource=github-release-attachments depName=google/osv-scanner
 OSV_SCANNER_VERSION="${OSV_SCANNER_VERSION:-v2.7.0}"
 OSV_SCANNER_SHA256="${OSV_SCANNER_SHA256:-160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b}"
 
-# renovate: datasource=github-release-attachments depName=opengrep/opengrep
 OPENGREP_VERSION="${OPENGREP_VERSION:-v1.32.0}"
 OPENGREP_SHA256="${OPENGREP_SHA256:-7360d60174880bd9214f2dfbe439b7bce82b7a3d44cfe945ba833c85cc8bda75}"
 
-# renovate: datasource=git-refs depName=https://github.com/semgrep/semgrep-rules
 SEMGREP_RULES_REF="${SEMGREP_RULES_REF:-16b9e6d45f10649f6a531ec4838ed9924372c3bc}"
 SEMGREP_RULES_DIR="semgrep-rules"
 
-# renovate: datasource=github-release-attachments depName=hadolint/hadolint
 HADOLINT_VERSION="${HADOLINT_VERSION:-v2.15.1}"
 HADOLINT_SHA256="${HADOLINT_SHA256:-c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507}"
 
-# renovate: datasource=github-release-attachments depName=gitleaks/gitleaks
 GITLEAKS_VERSION="${GITLEAKS_VERSION:-v8.30.1}"
 GITLEAKS_SHA256="${GITLEAKS_SHA256:-551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb}"
 
-# renovate: datasource=npm depName=@cyclonedx/cyclonedx-npm
 CYCLONEDX_NPM_VERSION="${CYCLONEDX_NPM_VERSION:-6.0.1}"
 
 TMP_DIR="$(mktemp -d)"

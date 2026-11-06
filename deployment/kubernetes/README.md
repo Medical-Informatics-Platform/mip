@@ -147,6 +147,27 @@ The `mip` Python client signs in through a **public** Keycloak client of its own
 The client needs, in Keycloak: client authentication off; standard flow on with PKCE `S256`, redirect URI exactly `https://<global.publicHost>/account` (no wildcard) and web origin `https://<global.publicHost>`; the OAuth 2.0 Device Authorization Grant on; Full scope allowed; the `roles` client scope set to *Optional* (so other clients' and realm roles stay out of its tokens); a copy of the federation client's *User Client Role* mapper (client `KEYCLOAK_CLIENT_ID`, claim `authorities`); an *Audience* mapper for that client; the `offline_access` scope; and a *Client Offline Session Max* of 180 days. Keycloak applies offline maximums only when the realm's *Offline Session Max Limited* is on, and caps the client's at the realm's *Offline Session Max*; to leave the realm's other clients unaffected, set that realm maximum high (e.g. 3650 days). Without it, only the offline idle timeout ever signs a computer out. Users and roles stay on the federation's client.
 
 
+### Security settings for each federation
+
+Do these in order; each step needs the one before it.
+
+1. **Deploy a backend with the token checks everywhere first.** Older backends accept any token of the realm, so one federation's token reads another's data. Laptop sign-in stays off until this is done.
+2. **Give each federation its own platform client.** Federations sharing a client share tokens: their backends accept each other's. This needs a new client in Keycloak, with users and roles assigned to it.
+3. **Set the platform client's *Backchannel Logout URL*** to `https://<global.publicHost>/services/logout/connect/back-channel/keycloak`. Without it, a disabled user keeps a portal session for up to 8 hours.
+4. **Keep notebook pods away from Exaflow and the backend database.** Exaflow has no user authentication, and notebook pods run users' code. This chart ships no NetworkPolicy: `mip-infra` limits the notebooks' egress to the hub API, the backend API and DNS (`common/security/federation/templates/notebook-network-policy.yaml`). Clusters without it need an equivalent policy, on a CNI that enforces NetworkPolicies. A policy on Exaflow's pods does not help if another policy opens them to the namespace. From a notebook terminal, check that each of these times out; a name resolution error proves nothing:
+   ```bash
+   curl -m 5 http://exaflow-controller-service:5000/healthcheck
+   python -c "import socket; socket.create_connection(('exaflow-workers-service', 5672), 5)"
+   python -c "import socket; socket.create_connection(('exaflow-aggregation-service', 50051), 5)"
+   ```
+5. **Create the secret `exaflow-api-token`** (key `token`) in the namespace, then restart the backend, the Exaflow controller and the Exaflow workers; all of them read it. The controller then requires the token on its HTTP API, except on `/livez` and `/healthcheck`. It does not protect the workers or the aggregation server.
+6. **Set `keycloak.requiredAudience`** to the platform client once its portal, notebook and laptop tokens all carry it in `aud`. Keycloak does not add it by default: add an *Audience* mapper for the platform client to each client that issues these tokens. Decode one of each first; a wrong value refuses every API call.
+
+Upgrade notes:
+
+- Users without a role on the platform client can no longer open notebooks, and users without a shared experiment's datasets can no longer read it.
+- The chart does not change image tags. `EXAFLOW_API_TOKEN`, `KEYCLOAK_REQUIRED_AUDIENCE` and `KEYCLOAK_ORIGIN` do nothing until you deploy images that read them.
+
 ### Microk8s installation
 On a running Ubuntu (we recommend 22.04) distribution, install microk8s (we **HIGHLY** recommend to **NOT** install Docker on your Kubernetes cluster!):
 ```

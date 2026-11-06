@@ -51,6 +51,10 @@ spec:
             - name: PLATFORM_BACKEND_CONTEXT
               value: {{ $backendContext | quote }}
 {{- end }}
+{{- if .Values.keycloak.host }}
+            - name: KEYCLOAK_ORIGIN
+              value: {{ printf "%s://%s" (default "https" .Values.keycloak.protocol) .Values.keycloak.host | quote }}
+{{- end }}
             - name: NOTEBOOK_ENABLED
               value: {{ ternary "1" "0" $notebookEnabled | quote }}
             - name: JUPYTER_SERVER

@@ -203,6 +203,14 @@ spec:
               value: {{ $keycloakRealm | quote }}
             - name: KEYCLOAK_CLI_CLIENT_ID
               value: {{ default "" .Values.keycloak.cliClientId | quote }}
+            - name: EXAFLOW_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: exaflow-api-token
+                  key: token
+                  optional: true
+            - name: KEYCLOAK_REQUIRED_AUDIENCE
+              value: {{ default "" .Values.keycloak.requiredAudience | quote }}
             - name: KEYCLOAK_CLIENT_ID
               valueFrom:
                 secretKeyRef:

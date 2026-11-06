@@ -55,6 +55,9 @@ keycloak:
   # Public Keycloak client for the mip Python client on users' own computers
   # (account-page tokens and `mip login`). Empty: not offered. See README.
   cliClientId: ""
+  # When set, Bearer tokens must also name this in aud. Set it once all this federation's
+  # clients issue such tokens. Empty: aud is not checked (azp always is).
+  requiredAudience: ""
 
 jupyterhub:
   # Leave empty and create the jupyterhub-crypt secret out-of-band (see README),

@@ -154,7 +154,7 @@ Revoke a computer's access through Keycloak; the next `mip` call then fails when
 
 *As an administrator:* in *Users*, open the user, then *Sessions* to sign out the offline sessions and *Consents* to revoke the client's consent. Disabling the user also stops renewal.
 
-*Lost laptop:* revoke as above, have the user change their password if the laptop may have been unlocked, and tell the federation operator. Once renewal fails, an unrevoked token is worth at most the 5-minute access-token lifetime.
+*Lost laptop:* revoke as above, have the user change their password if the laptop may have been unlocked, and tell the federation operator. After revocation, an access token already issued still works for up to 5 minutes.
 
 For the administrator steps at EBRAINS, contact the realm administrators; record the contact and expected response time here once confirmed. When a new dataset role is created on the platform client, add it to the laptop client's scope as well (see the settings above), or laptop users silently lose that dataset.
 

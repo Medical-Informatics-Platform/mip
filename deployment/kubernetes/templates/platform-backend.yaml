@@ -1,3 +1,6 @@
+{{- if and (default "" .Values.keycloak.cliClientId) (not (default "" .Values.keycloak.requiredAudience)) -}}
+{{- fail "keycloak.cliClientId requires keycloak.requiredAudience: laptop tokens would be accepted without the audience check. See the README turn-on checklist and rollout step 6." -}}
+{{- end -}}
 {{- $namespace := default "default" .Release.Namespace -}}
 {{- $platformBackend := index .Values "platform-backend" -}}
 {{- $authEnabled := ne (toString .Values.keycloak.enabled) "false" -}}
@@ -203,6 +206,8 @@ spec:
               value: {{ $keycloakRealm | quote }}
             - name: KEYCLOAK_CLI_CLIENT_ID
               value: {{ default "" .Values.keycloak.cliClientId | quote }}
+            - name: KEYCLOAK_CLI_REQUIRE_DPOP
+              value: {{ ternary "true" "false" (eq (toString .Values.keycloak.cliRequireDpop) "true") | quote }}
             - name: EXAFLOW_API_TOKEN
               valueFrom:
                 secretKeyRef:

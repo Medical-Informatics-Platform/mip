@@ -57,6 +57,10 @@ keycloak:
   # Turns laptop sign-in on. Set only after the checklist in README
   # *Using MIP from users' own computers*.
   cliClientId: ""
+  # Require DPoP-bound tokens for the laptop client (RFC 9449). Turn on only
+  # together with DPoP on the laptop client in Keycloak and a DPoP-capable
+  # mip-client; platform and notebook tokens keep working over Bearer.
+  cliRequireDpop: false
   # When set, Bearer tokens must also name this in aud. Set it once all this federation's
   # clients issue such tokens. Empty: aud is not checked (azp always is).
   requiredAudience: ""

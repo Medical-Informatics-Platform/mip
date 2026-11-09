@@ -6,6 +6,11 @@ on:
     tags:
     - '*'
 
+# git-sync clones the public source repo and pushes to GitLab with the
+# destination credential. It does not write to this repository.
+permissions:
+  contents: read
+
 jobs:
   to_ebrains:
     runs-on: ubuntu-latest

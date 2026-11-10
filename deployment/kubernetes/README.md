@@ -84,7 +84,7 @@ Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there ar
 * `jupyterhub`: JupyterHub and single-user Jupyter images, hub resources, ingress, storage, crypt key, and notebook resource requests/limits. Rendered only when `platform-ui.notebook.enabled` is true, which also requires `keycloak.enabled`. Notebook traffic for the portal iframe should use platform-ui's `/notebook/` proxy; keep `jupyterhub.ingress.enabled: false` unless you need a separate admin-only host.
   Notebook examples are mounted only in operator mode on MIP infra clusters (mip-infra
   `common/examples`). KubeSpawner installs start without them.
-* `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`).
+* `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`), and `cliClientId` for using MIP from users' own computers (below).
 
 Copy `values.yaml` to a new file (for example `my-values.yaml`) and edit it in-place. A few important knobs:
 
@@ -123,6 +123,8 @@ Register a Keycloak redirect URI for the Hub OAuth client:
 
 For Kubernetes, make sure the images set in `jupyterhub.image` and `jupyterhub.singleuser.image` are pushed to the configured registry or loaded onto every node that may run the pods.
 
+`jupyterhub.spawner: operator-api` removes the hub's Kubernetes access entirely. The hub creates and deletes notebooks through the notebook operator's HTTPS spawn API (`jupyterhub.operatorApi.url`) instead of the Kubernetes API, and the chart renders no Role or RoleBinding, whatever `jupyterhub.rbac.create` says. The hub pod gets no ServiceAccount token at the standard path; it authenticates with a projected token bound to the audience `mip-notebook-operator`, which the kubelet rotates and the API server rejects, and trusts the spawn API's CA from the `mip-notebooks-ca` ConfigMap (`jupyterhub.operatorApi.caConfigMap`), which mip-infra copies into each federation. The hub picks up a rotated token or CA without a restart. This mode needs a hub image with the operator-api spawner and the spawn API deployed by mip-infra.
+
 The reachability diagram from the legacy profiles is still valid as a reference for deciding the correct public URL:
 ![MIP Reachability Scheme](../docs/MIP_Configuration.png)
 
@@ -138,6 +140,52 @@ If you deploy behind a reverse proxy or load balancer, forward the standard `X-F
 
 After tailoring `values.yaml` you can deploy the UI Helm chart. We still recommend deploying the engine Helm charts first, before installing the UI components.
 
+### Using MIP from users' own computers
+
+The `mip` Python client signs in through a **public** Keycloak client of its own, one per federation, e.g. `mip-cli-<federation>`. Users create a token on the portal's account page, or run `mip login`, and the client renews access with Keycloak by itself. Set the client's ID in `keycloak.cliClientId`; leave it empty to keep the feature off (the account page then hides the guide).
+
+The client needs, in Keycloak: client authentication off; standard flow on with PKCE `S256` **enforced** (not an empty challenge method), redirect URI exactly `https://<global.publicHost>/account` (no wildcard) and web origin `https://<global.publicHost>`; the OAuth 2.0 Device Authorization Grant on; implicit flow, direct access grants and service accounts **off**; *Full scope allowed* **off**, with the platform client's data roles (or one composite role holding them all) added to the laptop client's dedicated scope instead — whenever a new dataset role is created on the platform client, add it there too, or laptop users silently lose that dataset; the `roles` client scope set to *Optional* (so other clients' and realm roles stay out of its tokens); a copy of the federation client's *User Client Role* mapper (client `KEYCLOAK_CLIENT_ID`, claim `authorities`); an *Audience* mapper for that client; the `offline_access` scope; a *Client Offline Session Idle* of 30 days and a *Client Offline Session Max* of 180 days. Keycloak applies offline maximums only when the realm's *Offline Session Max Limited* is on, and caps the client's at the realm's *Offline Session Max*; to leave the realm's other clients unaffected, set that realm maximum high (e.g. 3650 days). Without it, only the offline idle timeout ever signs a computer out. Also ask EBRAINS for an authentication flow override on the laptop client without the Cookie execution (every sign-in then needs the password, whatever the request asks) and for *Consent required* with a consent text naming the client. Users and roles stay on the federation's client.
+
+### Ending a laptop sign-in
+
+Revoke a computer's access through Keycloak; the next `mip` call then fails when it tries to renew.
+
+*As the user:* open the Keycloak account console at `https://<keycloak host>/realms/<realm>/account`, go to *Applications*, find `mip-cli-<federation>` and choose *Remove access*; this ends the offline session. On the laptop, `mip logout` clears the stored token.
+
+*As an administrator:* in *Users*, open the user, then *Sessions* to sign out the offline sessions and *Consents* to revoke the client's consent. Disabling the user also stops renewal.
+
+*Lost laptop:* revoke as above, have the user change their password if the laptop may have been unlocked, and tell the federation operator. After revocation, an access token already issued still works for up to 5 minutes.
+
+For the administrator steps at EBRAINS, contact the realm administrators; record the contact and expected response time here once confirmed. When a new dataset role is created on the platform client, add it to the laptop client's scope as well (see the settings above), or laptop users silently lose that dataset.
+
+Before turning the feature on (setting `keycloak.cliClientId`), check off:
+
+- [ ] The Keycloak client settings above are verified: the sign-in settings, the federation-limited scope, and the re-authentication override and consent (ask EBRAINS).
+- [ ] `keycloak.requiredAudience` is set on the backend (step 6 under *Security settings for each federation*).
+- [ ] A platform-ui image with `prompt=login` on the account page is deployed (name the minimum version here once released).
+- [ ] The revocation runbook above (*Ending a laptop sign-in*) is in place.
+
+
+### Security settings for each federation
+
+Do these in order; each step needs the one before it.
+
+1. **Deploy a backend with the token checks everywhere first.** Older backends accept any token of the realm, so one federation's token reads another's data. Laptop sign-in stays off until this is done.
+2. **Give each federation its own platform client.** Federations sharing a client share tokens: their backends accept each other's. This needs a new client in Keycloak, with users and roles assigned to it.
+3. **Set the platform client's *Backchannel Logout URL*** to `https://<global.publicHost>/services/logout/connect/back-channel/keycloak`. Without it, a disabled user keeps a portal session for up to 8 hours.
+4. **Keep notebook pods away from Exaflow and the backend database.** Exaflow has no user authentication, and notebook pods run users' code. This chart ships no NetworkPolicy: `mip-infra` limits the notebooks' egress to the hub API, the backend API and DNS (`common/security/federation/templates/notebook-network-policy.yaml`). Clusters without it need an equivalent policy, on a CNI that enforces NetworkPolicies. A policy on Exaflow's pods does not help if another policy opens them to the namespace. From a notebook terminal, check that each of these times out; a name resolution error proves nothing:
+   ```bash
+   curl -m 5 http://exaflow-controller-service:5000/healthcheck
+   python -c "import socket; socket.create_connection(('exaflow-workers-service', 5672), 5)"
+   python -c "import socket; socket.create_connection(('exaflow-aggregation-service', 50051), 5)"
+   ```
+5. **Create the secret `exaflow-api-token`** (key `token`) in the namespace, then restart the backend, the Exaflow controller and the Exaflow workers; all of them read it. The controller then requires the token on its HTTP API, except on `/livez` and `/healthcheck`. It does not protect the workers or the aggregation server.
+6. **Set `keycloak.requiredAudience`** to the platform client once its portal, notebook and laptop tokens all carry it in `aud`. Keycloak does not add it by default: add an *Audience* mapper for the platform client to each client that issues these tokens. Decode one of each first — for a laptop token, check `azp` (the laptop client), `aud` (contains the platform client) and `typ` (`Bearer`) — a wrong value refuses every API call. Laptop sign-in (`keycloak.cliClientId`) stays off until this is set.
+
+Upgrade notes:
+
+- Users without a role on the platform client can no longer open notebooks, and users without a shared experiment's datasets can no longer read it.
+- The chart does not change image tags. `EXAFLOW_API_TOKEN`, `KEYCLOAK_REQUIRED_AUDIENCE` and `KEYCLOAK_ORIGIN` do nothing until you deploy images that read them.
 
 ### Microk8s installation
 On a running Ubuntu (we recommend 22.04) distribution, install microk8s (we **HIGHLY** recommend to **NOT** install Docker on your Kubernetes cluster!):

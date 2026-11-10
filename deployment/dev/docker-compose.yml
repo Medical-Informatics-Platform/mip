@@ -167,6 +167,9 @@ services:
       KEYCLOAK_REALM: "${KEYCLOAK_REALM}"
       KEYCLOAK_CLIENT_ID: "${KEYCLOAK_CLIENT_ID}"
       KEYCLOAK_CLIENT_SECRET: "${KEYCLOAK_CLIENT_SECRET}"
+      KEYCLOAK_CLI_CLIENT_ID: "${KEYCLOAK_CLI_CLIENT_ID:-}"
+      KEYCLOAK_REQUIRED_AUDIENCE: "${KEYCLOAK_REQUIRED_AUDIENCE:-}"
+      KEYCLOAK_CLI_REQUIRE_DPOP: "${KEYCLOAK_CLI_REQUIRE_DPOP:-false}"
       KEYCLOAK_SSL_REQUIRED: "${KEYCLOAK_SSL_REQUIRED}"
     volumes:
       - ./config:/opt/platform/api
@@ -181,6 +184,7 @@ services:
       PLATFORM_BACKEND_CONTEXT: services
       NOTEBOOK_ENABLED: 0
       MIP_VERSION: "${MIP}"
+      KEYCLOAK_ORIGIN: "${KEYCLOAK_ORIGIN:-}"
     depends_on:
       - platform-backend
     restart: unless-stopped

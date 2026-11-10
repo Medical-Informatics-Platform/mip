@@ -25,22 +25,24 @@ jobs:
   sca:
     name: Operator SCA
     uses: ./.github/workflows/operator-sca.yml
-    secrets: inherit
+    secrets:
+      ARTIFACT_PASSWORD: ${{ secrets.ARTIFACT_PASSWORD }}
 
   container-scan:
     name: Operator container scanning
     uses: ./.github/workflows/operator-container-scan.yml
-    secrets: inherit
+    secrets:
+      ARTIFACT_PASSWORD: ${{ secrets.ARTIFACT_PASSWORD }}
 
   sast:
     name: Operator SAST
     uses: ./.github/workflows/operator-sast.yml
-    secrets: inherit
+    secrets:
+      ARTIFACT_PASSWORD: ${{ secrets.ARTIFACT_PASSWORD }}
 
   secrets-scan:
     name: Operator secret scanning
     uses: ./.github/workflows/operator-secrets-scan.yml
-    secrets: inherit
 
   build_and_push:
     name: Build ${{ matrix.image }} image and push to registries

@@ -1,3 +1,6 @@
+{{- if and (default "" .Values.keycloak.cliClientId) (not (default "" .Values.keycloak.requiredAudience)) -}}
+{{- fail "keycloak.cliClientId requires keycloak.requiredAudience: local-client tokens would be accepted without the audience check. See the README turn-on checklist and rollout step 5." -}}
+{{- end -}}
 {{- $namespace := default "default" .Release.Namespace -}}
 {{- $platformBackend := index .Values "platform-backend" -}}
 {{- $authEnabled := ne (toString .Values.keycloak.enabled) "false" -}}
@@ -201,6 +204,10 @@ spec:
               value: {{ $keycloakAuthUrl | quote }}
             - name: KEYCLOAK_REALM
               value: {{ $keycloakRealm | quote }}
+            - name: KEYCLOAK_CLI_CLIENT_ID
+              value: {{ default "" .Values.keycloak.cliClientId | quote }}
+            - name: KEYCLOAK_CLI_REQUIRE_DPOP
+              value: {{ ternary "true" "false" (eq (toString .Values.keycloak.cliRequireDpop) "true") | quote }}
             - name: KEYCLOAK_REQUIRED_AUDIENCE
               value: {{ default "" .Values.keycloak.requiredAudience | quote }}
             - name: KEYCLOAK_CLIENT_ID

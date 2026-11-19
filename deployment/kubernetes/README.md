@@ -152,13 +152,12 @@ Do these in order; each step needs the one before it.
    python -c "import socket; socket.create_connection(('exaflow-workers-service', 5672), 5)"
    python -c "import socket; socket.create_connection(('exaflow-aggregation-service', 50051), 5)"
    ```
-5. **Create the secret `exaflow-api-token`** (key `token`) in the namespace, then restart the backend, the Exaflow controller and the Exaflow workers; all of them read it. The controller then requires the token on its HTTP API, except on `/livez` and `/healthcheck`. It does not protect the workers or the aggregation server.
-6. **Set `keycloak.requiredAudience`** to the platform client once its portal, notebook and local-client tokens all carry it in `aud`. Keycloak does not add it by default: add an *Audience* mapper for the platform client to each client that issues these tokens. Decode one of each first; a wrong value refuses every API call.
+5. **Set `keycloak.requiredAudience`** to the platform client once its portal, notebook and local-client tokens all carry it in `aud`. Keycloak does not add it by default: add an *Audience* mapper for the platform client to each client that issues these tokens. Decode one of each first; a wrong value refuses every API call.
 
 Upgrade notes:
 
 - Users without a role on the platform client can no longer open notebooks, and users without a shared experiment's datasets can no longer read it.
-- The chart does not change image tags. `EXAFLOW_API_TOKEN`, `KEYCLOAK_REQUIRED_AUDIENCE` and `KEYCLOAK_ORIGIN` do nothing until you deploy images that read them.
+- The chart does not change image tags. `KEYCLOAK_REQUIRED_AUDIENCE` and `KEYCLOAK_ORIGIN` do nothing until you deploy images that read them.
 
 ### Microk8s installation
 On a running Ubuntu (we recommend 22.04) distribution, install microk8s (we **HIGHLY** recommend to **NOT** install Docker on your Kubernetes cluster!):

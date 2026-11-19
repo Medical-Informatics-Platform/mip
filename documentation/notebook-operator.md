@@ -16,7 +16,7 @@ After the switch:
 
 | Component | Can create pods | How |
 |---|---|---|
-| JupyterHub, `operator` mode | no | `notebooks` create/get/list/watch/delete, `secrets` create (Role applied out-of-band by an admin) |
+| JupyterHub, `operator` mode | no | `notebooks` get/create/delete, `secrets` create (Role applied out-of-band by an admin) |
 | JupyterHub, `operator-api` mode | no | no Kubernetes credential at all; calls the spawn API |
 | Spawn API | no | `notebooks` get/create/delete, `secrets` create per federation, `tokenreviews` create |
 | Argo CD controller | no | no RBAC write either; only syncs `NotebookProfile` |

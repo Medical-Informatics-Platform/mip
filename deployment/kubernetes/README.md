@@ -123,6 +123,8 @@ Register a Keycloak redirect URI for the Hub OAuth client:
 
 For Kubernetes, make sure the images set in `jupyterhub.image` and `jupyterhub.singleuser.image` are pushed to the configured registry or loaded onto every node that may run the pods.
 
+`jupyterhub.spawner: operator-api` removes the hub's Kubernetes access entirely. The hub creates and deletes notebooks through the notebook operator's HTTPS spawn API (`jupyterhub.operatorApi.url`) instead of the Kubernetes API, and the chart renders no Role or RoleBinding, whatever `jupyterhub.rbac.create` says. The hub pod gets no ServiceAccount token at the standard path; it authenticates with a projected token bound to the audience `mip-notebook-operator`, which the kubelet rotates and the API server rejects, and trusts the spawn API's CA from the `mip-notebooks-ca` ConfigMap (`jupyterhub.operatorApi.caConfigMap`), which mip-infra copies into each federation. The hub picks up a rotated token or CA without a restart. This mode needs a hub image with the operator-api spawner and the spawn API deployed by mip-infra.
+
 The reachability diagram from the legacy profiles is still valid as a reference for deciding the correct public URL:
 ![MIP Reachability Scheme](../docs/MIP_Configuration.png)
 

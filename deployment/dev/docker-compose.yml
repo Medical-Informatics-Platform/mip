@@ -13,6 +13,21 @@ services:
       default:
         ipv4_address: 172.28.0.13
 
+  rabbitmq:
+    image: rabbitmq:4.4.1
+    environment:
+      RABBITMQ_DEFAULT_USER: mip
+      RABBITMQ_DEFAULT_PASS: mip
+    healthcheck:
+      test: ["CMD", "gosu", "rabbitmq", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks:
+      default:
+        ipv4_address: 172.28.0.14
+
   exaflow_controller:
     image: madgik/exaflow_controller:${EXAFLOW}
     ports:
@@ -33,6 +48,8 @@ services:
       LOCALWORKERS_PORT: ""
       AGGREGATION_SERVER_ENABLED: true
       AGGREGATION_SERVER_DNS: 172.28.0.13:50051
+      RABBITMQ_ENABLED: "true"
+      RABBITMQ_URL: amqp://mip:mip@rabbitmq:5672/%2F
       SMPC_ENABLED: false
       SMPC_OPTIONAL: false
       SMPC_COORDINATOR_ADDRESS: ""
@@ -42,7 +59,10 @@ services:
       DP_SENSITIVITY: ""
       DP_PRIVACY_BUDGET: ""
     depends_on:
-      - exaflow_aggregation_server
+      exaflow_aggregation_server:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     volumes:
       - ./config:/opt/config
     restart: unless-stopped
@@ -145,6 +165,8 @@ services:
     depends_on:
       platform_backend_db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       exaflow_controller:
         condition: service_started
     environment:
@@ -160,6 +182,7 @@ services:
       ### Exaflow ###
       ALGORITHM_UPDATE_INTERVAL: 30     # seconds
       EXAFLOW_URL: http://exaflow_controller:5000
+      RABBITMQ_URL: amqp://mip:mip@rabbitmq:5672/%2F
       PLATFORM_UI_BASE_URL: "${PLATFORM_UI_BASE_URL:-http://localhost}"
       ### Keycloak (external) ###
       AUTHENTICATION: "${AUTHENTICATION}"

@@ -102,3 +102,29 @@ jupyterhub:
       limits:
         cpu: "1"
         memory: 4G
+
+rabbitmq:
+  # Single-node RabbitMQ 4.4.1 broker for Exaflow's AMQP analysis transport.
+  # 4.1 is past End of Community Support.
+  # Created out of band; keys username, password, url (see README).
+  existingSecret: exaflow-rabbitmq
+  image:
+    repository: rabbitmq
+    tag: "4.4.1"
+  persistence:
+    size: 4Gi
+  # 512Mi request / 2Gi limit so the quorum Raft WAL, a 32MiB message and
+  # 256MiB queues do not trip the memory alarm or OOMKill the broker.
+  resources:
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {cpu: "1", memory: 2Gi}
+  consumerTimeoutMs: 7200000
+  maxMessageSize: 33554432
+  # vm_memory_high_watermark.relative. 0.6 is RabbitMQ's default (the old 0.4
+  # alarm fired too early for this workload). With the 2Gi limit this alarms
+  # at about 1.2Gi when the node sees the cgroup limit.
+  vmMemoryHighWatermarkRelative: 0.6
+  # raft.wal_max_size_bytes. 134217728 bytes is 128 MiB.
+  raftWalMaxSizeBytes: 134217728
+  # Extra rabbitmq.conf lines, appended as written. Any change rolls the pod.
+  extraConfig: ""

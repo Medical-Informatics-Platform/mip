@@ -1,0 +1,144 @@
+{{- $namespace := default "default" .Release.Namespace -}}
+{{- $storageClass := include "mip.storageClass" . -}}
+{{- $rabbitmq := default dict .Values.rabbitmq -}}
+{{- $image := default dict $rabbitmq.image -}}
+{{- $persistence := default dict $rabbitmq.persistence -}}
+{{- $resources := default (dict "requests" (dict "cpu" "100m" "memory" "512Mi") "limits" (dict "cpu" "1" "memory" "2Gi")) $rabbitmq.resources -}}
+{{- $rabbitmqConf := trimSuffix "\n" (printf "consumer_timeout = %d\nmax_message_size = %d\nvm_memory_high_watermark.relative = %v\nraft.wal_max_size_bytes = %d\n%s" (int64 (default 7200000 $rabbitmq.consumerTimeoutMs)) (int64 (default 33554432 $rabbitmq.maxMessageSize)) (default 0.6 $rabbitmq.vmMemoryHighWatermarkRelative) (int64 (default 134217728 $rabbitmq.raftWalMaxSizeBytes)) (default "" $rabbitmq.extraConfig)) -}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: exaflow-rabbitmq-config
+  namespace: {{ $namespace }}
+data:
+  rabbitmq.conf: |
+{{- $rabbitmqConf | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: exaflow-rabbitmq-headless
+  namespace: {{ $namespace }}
+  labels:
+    app: exaflow-rabbitmq
+spec:
+  clusterIP: None
+  selector:
+    app: exaflow-rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: exaflow-rabbitmq
+  namespace: {{ $namespace }}
+  labels:
+    app: exaflow-rabbitmq
+spec:
+  serviceName: exaflow-rabbitmq-headless
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exaflow-rabbitmq
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ $rabbitmqConf | sha256sum }}
+      labels:
+        app: exaflow-rabbitmq
+    spec:
+{{- if eq (toString .Values.cluster.managed) "false" }}
+      nodeSelector:
+        master: "true"
+{{- end }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: rabbitmq
+          image: {{ default "rabbitmq" $image.repository }}:{{ default "4.4.1" $image.tag }}
+          ports:
+            - name: amqp
+              containerPort: 5672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default "exaflow-rabbitmq" $rabbitmq.existingSecret | quote }}
+                  key: username
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default "exaflow-rabbitmq" $rabbitmq.existingSecret | quote }}
+                  key: password
+          startupProbe:
+            exec:
+              command:
+                - rabbitmq-diagnostics
+                - -q
+                - check_running
+            periodSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+                - rabbitmq-diagnostics
+                - -q
+                - check_running
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - rabbitmq-diagnostics
+                - -q
+                - ping
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 5
+          resources:
+            {{- toYaml $resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
+            - name: data
+              mountPath: /var/lib/rabbitmq
+      volumes:
+        - name: config
+          configMap:
+            name: exaflow-rabbitmq-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ $storageClass }}
+        resources:
+          requests:
+            storage: {{ default "4Gi" $persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: exaflow-rabbitmq
+  namespace: {{ $namespace }}
+  labels:
+    app: exaflow-rabbitmq
+spec:
+  type: ClusterIP
+  selector:
+    app: exaflow-rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672

@@ -84,7 +84,7 @@ Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there ar
 * `jupyterhub`: JupyterHub and single-user Jupyter images, hub resources, ingress, storage, crypt key, and notebook resource requests/limits. Rendered only when `platform-ui.notebook.enabled` is true, which also requires `keycloak.enabled`. Notebook traffic for the portal iframe should use platform-ui's `/notebook/` proxy; keep `jupyterhub.ingress.enabled: false` unless you need a separate admin-only host.
   Notebook examples are mounted only in operator mode on MIP infra clusters (mip-infra
   `common/examples`). KubeSpawner installs start without them.
-* `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`).
+* `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`), and `cliClientId` for using MIP from users' own computers (below).
 
 Copy `values.yaml` to a new file (for example `my-values.yaml`) and edit it in-place. A few important knobs:
 
@@ -138,6 +138,31 @@ If you deploy behind a reverse proxy or load balancer, forward the standard `X-F
 
 After tailoring `values.yaml` you can deploy the UI Helm chart. We still recommend deploying the engine Helm charts first, before installing the UI components.
 
+### Using MIP from users' own computers
+
+The `mip` Python client signs in through a **public** Keycloak client of its own, one per federation, e.g. `mip-cli-<federation>`. Users create a token on the portal's account page, or run `mip login`, and the client renews access with Keycloak by itself. Set the client's ID in `keycloak.cliClientId`; leave it empty to keep the feature off (the account page then hides the guide).
+
+The client needs, in Keycloak: client authentication off; standard flow on with PKCE `S256` **enforced** (not an empty challenge method), redirect URI exactly `https://<global.publicHost>/account` (no wildcard) and web origin `https://<global.publicHost>`; the OAuth 2.0 Device Authorization Grant on; implicit flow, direct access grants and service accounts **off**; *Full scope allowed* **off**, with the platform client's data roles (or one composite role holding them all) added to the local client's dedicated scope instead — whenever a new dataset role is created on the platform client, add it there too, or local-client users silently lose that dataset; the `roles` client scope set to *Optional* (so other clients' and realm roles stay out of its tokens); a copy of the federation client's *User Client Role* mapper (client `KEYCLOAK_CLIENT_ID`, claim `authorities`); an *Audience* mapper for that client; the `offline_access` scope; a *Client Offline Session Idle* of 30 days and a *Client Offline Session Max* of 180 days. Keycloak applies offline maximums only when the realm's *Offline Session Max Limited* is on, and caps the client's at the realm's *Offline Session Max*; to leave the realm's other clients unaffected, set that realm maximum high (e.g. 3650 days). Without it, only the offline idle timeout ever signs a computer out. Also ask EBRAINS for an authentication flow override on the local client without the Cookie execution (every sign-in then needs the password, whatever the request asks) and for *Consent required* with a consent text naming the client. Users and roles stay on the federation's client.
+
+### Ending a local-client sign-in
+
+Revoke a computer's access through Keycloak; the next `mip` call then fails when it tries to renew.
+
+*As the user:* open the Keycloak account console at `https://<keycloak host>/realms/<realm>/account`, go to *Applications*, find `mip-cli-<federation>` and choose *Remove access*; this ends the offline session. On the local machine, `mip logout` clears the stored token.
+
+*As an administrator:* in *Users*, open the user, then *Sessions* to sign out the offline sessions and *Consents* to revoke the client's consent. Disabling the user also stops renewal.
+
+*Lost device:* revoke as above, have the user change their password if the machine may have been unlocked, and tell the federation operator. After revocation, an access token already issued still works for up to 5 minutes.
+
+For the administrator steps at EBRAINS, contact the realm administrators; record the contact and expected response time here once confirmed. When a new dataset role is created on the platform client, add it to the local client's scope as well (see the settings above), or local-client users silently lose that dataset.
+
+Before turning the feature on (setting `keycloak.cliClientId`), check off:
+
+- [ ] The Keycloak client settings above are verified: the sign-in settings, the federation-limited scope, and the re-authentication override and consent (ask EBRAINS).
+- [ ] `keycloak.requiredAudience` is set on the backend (step 5 under *Security settings for each federation*).
+- [ ] A platform-ui image with `prompt=login` on the account page is deployed (name the minimum version here once released).
+- [ ] The revocation runbook above (*Ending a local-client sign-in*) is in place.
+
 
 ### Security settings for each federation
 
@@ -152,7 +177,7 @@ Do these in order; each step needs the one before it.
    python -c "import socket; socket.create_connection(('exaflow-workers-service', 5672), 5)"
    python -c "import socket; socket.create_connection(('exaflow-aggregation-service', 50051), 5)"
    ```
-5. **Set `keycloak.requiredAudience`** to the platform client once its portal, notebook and local-client tokens all carry it in `aud`. Keycloak does not add it by default: add an *Audience* mapper for the platform client to each client that issues these tokens. Decode one of each first; a wrong value refuses every API call.
+5. **Set `keycloak.requiredAudience`** to the platform client once its portal, notebook and local-client tokens all carry it in `aud`. Keycloak does not add it by default: add an *Audience* mapper for the platform client to each client that issues these tokens. Decode one of each first — for a local-client token, check `azp` (the local client), `aud` (contains the platform client) and `typ` (`Bearer`) — a wrong value refuses every API call. Local-client sign-in (`keycloak.cliClientId`) stays off until this is set.
 
 Upgrade notes:
 

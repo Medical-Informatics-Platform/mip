@@ -52,6 +52,15 @@ platformBackendDatabase:
 keycloak:
   enabled: true
   host: iam.ebrains.eu
+  # Public Keycloak client for the mip Python client on users' own computers
+  # (account-page tokens and `mip login`). Empty: not offered. See README.
+  # Turns local-client sign-in on. Set only after the checklist in README
+  # *Using MIP from users' own computers*.
+  cliClientId: ""
+  # Require DPoP-bound tokens for the local client (RFC 9449). Turn on only
+  # together with DPoP on the local client in Keycloak and a DPoP-capable
+  # mip-client; platform and notebook tokens keep working over Bearer.
+  cliRequireDpop: false
   # When set, Bearer tokens must also name this in aud. Set it once all this federation's
   # clients issue such tokens. Empty: aud is not checked (azp always is).
   requiredAudience: ""

@@ -191,8 +191,35 @@ spec:
                 secretKeyRef:
                   name: mip-secret
                   key: platform-backend-db.PLATFORM_DB_PASSWORD
+{{- $engines := default dict .Values.engines -}}
+{{- $exaflow := default dict $engines.exaflow -}}
+{{- $rabbitmq := default dict .Values.rabbitmq }}
             - name: EXAFLOW_URL
-              value: {{ default "" .Values.engines.exaflow.url | quote }}
+              value: {{ default "" $exaflow.url | quote }}
+{{- $exaflowRabbit := default dict $exaflow.rabbitmq -}}
+{{- $backendRabbitSecret := default (default "exaflow-rabbitmq" $rabbitmq.existingSecret) $exaflowRabbit.existingSecret -}}
+{{- $backendRabbitUrlKey := default "url" $exaflowRabbit.urlSecretKey }}
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $backendRabbitSecret | quote }}
+                  key: {{ $backendRabbitUrlKey | quote }}
+{{- with $exaflowRabbit.requestQueue }}
+            - name: EXAFLOW_RABBITMQ_REQUEST_QUEUE
+              value: {{ . | quote }}
+{{- end }}
+{{- with $exaflowRabbit.replyQueue }}
+            - name: EXAFLOW_RABBITMQ_REPLY_QUEUE
+              value: {{ . | quote }}
+{{- end }}
+{{- with $exaflowRabbit.replyTimeout }}
+            - name: EXAFLOW_RABBITMQ_REPLY_TIMEOUT
+              value: {{ . | quote }}
+{{- end }}
+{{- with $exaflowRabbit.publishTimeout }}
+            - name: EXAFLOW_RABBITMQ_PUBLISH_TIMEOUT
+              value: {{ . | quote }}
+{{- end }}
             - name: PLATFORM_UI_BASE_URL
               value: {{ $platformUiUrl | quote }}
             - name: MIP_VERSION

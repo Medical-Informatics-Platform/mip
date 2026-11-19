@@ -7,7 +7,17 @@ global:
   publicHost: hbpmip.link
 engines:
   exaflow:
+    # Specifications and metadata use this HTTP URL. Analyses always run over RabbitMQ.
     url: "http://exaflow-controller-service:5000"
+    # Empty fields keep the chart and backend defaults. existingSecret falls back
+    # to rabbitmq.existingSecret.
+    rabbitmq:
+      existingSecret: ""
+      urlSecretKey: "url"
+      requestQueue: ""
+      replyQueue: ""
+      replyTimeout: ""
+      publishTimeout: ""
 mip:
   version: 9.2.1
 platform-ui:

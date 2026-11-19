@@ -139,6 +139,26 @@ If you deploy behind a reverse proxy or load balancer, forward the standard `X-F
 After tailoring `values.yaml` you can deploy the UI Helm chart. We still recommend deploying the engine Helm charts first, before installing the UI components.
 
 
+### Security settings for each federation
+
+Do these in order; each step needs the one before it.
+
+1. **Deploy a backend with the token checks everywhere first.** Older backends accept any token of the realm, so one federation's token reads another's data. Local-client sign-in stays off until this is done.
+2. **Give each federation its own platform client.** Federations sharing a client share tokens: their backends accept each other's. This needs a new client in Keycloak, with users and roles assigned to it.
+3. **Set the platform client's *Backchannel Logout URL*** to `https://<global.publicHost>/services/logout/connect/back-channel/keycloak`. Without it, a disabled user keeps a portal session for up to 8 hours.
+4. **Keep notebook pods away from Exaflow and the backend database.** Exaflow has no user authentication, and notebook pods run users' code. This chart ships no NetworkPolicy: `mip-infra` limits the notebooks' egress to the hub API, the backend API and DNS (`common/security/federation/templates/notebook-network-policy.yaml`). Clusters without it need an equivalent policy, on a CNI that enforces NetworkPolicies. A policy on Exaflow's pods does not help if another policy opens them to the namespace. From a notebook terminal, check that each of these times out; a name resolution error proves nothing:
+   ```bash
+   curl -m 5 http://exaflow-controller-service:5000/healthcheck
+   python -c "import socket; socket.create_connection(('exaflow-workers-service', 5672), 5)"
+   python -c "import socket; socket.create_connection(('exaflow-aggregation-service', 50051), 5)"
+   ```
+5. **Set `keycloak.requiredAudience`** to the platform client once its portal, notebook and local-client tokens all carry it in `aud`. Keycloak does not add it by default: add an *Audience* mapper for the platform client to each client that issues these tokens. Decode one of each first; a wrong value refuses every API call.
+
+Upgrade notes:
+
+- Users without a role on the platform client can no longer open notebooks, and users without a shared experiment's datasets can no longer read it.
+- The chart does not change image tags. `KEYCLOAK_REQUIRED_AUDIENCE` and `KEYCLOAK_ORIGIN` do nothing until you deploy images that read them.
+
 ### Microk8s installation
 On a running Ubuntu (we recommend 22.04) distribution, install microk8s (we **HIGHLY** recommend to **NOT** install Docker on your Kubernetes cluster!):
 ```

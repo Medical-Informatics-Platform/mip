@@ -85,6 +85,7 @@ Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there ar
   Notebook examples are mounted only in operator mode on MIP infra clusters (mip-infra
   `common/examples`). KubeSpawner installs start without them.
 * `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`).
+* `rabbitmq`: optional single-node RabbitMQ 4.4.1 broker for Exaflow AMQP analyses. Off by default; create the `exaflow-rabbitmq` Secret out of band. The broker requests 512Mi and is limited to 2Gi.
 
 Copy `values.yaml` to a new file (for example `my-values.yaml`) and edit it in-place. A few important knobs:
 
@@ -238,6 +239,28 @@ for the full values and templates. The old `credentials_location`,
 `db.storage_location`, `db.csvs_location`, and `controller.cleanup_file_folder`
 settings are not used by this chart.
 
+### Analyses through RabbitMQ
+
+MIP submits analyses to Exaflow over RabbitMQ (specifications and metadata still use `engines.exaflow.url`). The chart always deploys the in-namespace RabbitMQ 4.4.1 broker.
+
+1. Use an Exaflow build that includes [madgik/exaflow#673](https://github.com/madgik/exaflow/pull/673) and [madgik/exaflow#681](https://github.com/madgik/exaflow/pull/681). Upgrade the controller, workers, and aggregation server together. Use a platform-backend build that includes the RabbitMQ transport. Run one Exaflow controller replica and one backend replica.
+2. Create the `exaflow-rabbitmq` Secret before deploying. Use a URL-safe password (`openssl rand -hex 24`): the same password is embedded in `url`, which Exaflow and the backend read, while the broker reads `username` and `password`. Keep `%2F` as the trailing vhost path so both the Java and Python AMQP clients select the default `/` vhost. The host is the in-namespace Service:
+
+```bash
+RABBITMQ_PASSWORD=$(openssl rand -hex 24)
+kubectl create secret generic exaflow-rabbitmq -n <namespace> \
+  --from-literal=username=mip \
+  --from-literal=password="$RABBITMQ_PASSWORD" \
+  --from-literal=url="amqp://mip:${RABBITMQ_PASSWORD}@exaflow-rabbitmq:5672/%2F"
+```
+
+3. Deploy this chart so the RabbitMQ broker starts.
+4. In the Exaflow values set `rabbitmq.enabled: true`. The chart defaults `existing_secret: exaflow-rabbitmq` and `url_secret_key: url` already match this Secret. Deploy Exaflow. `GET /healthcheck/rabbitmq` on the controller must return 200 with `consuming: true`.
+5. Delivery is at least once, so an analysis can run twice after a controller crash. Broker persistence and backups are your responsibility. The StatefulSet retains its PVC when the broker is deleted or scaled down; keep that PVC until dead-letter messages are inspected.
+6. `RABBITMQ_DEFAULT_USER` and `RABBITMQ_DEFAULT_PASS` apply only on first boot with an empty volume. Rotate by running `kubectl exec -n <namespace> exaflow-rabbitmq-0 -- rabbitmqctl change_password <user> <new-password>` first, then update the Secret (`password` and `url`), then restart the Exaflow controller and platform-backend.
+7. This chart's broker is RabbitMQ 4.4.1 (4.1 is past End of Community Support) and writes `consumer_timeout = 7200000`, `max_message_size = 33554432`, `vm_memory_high_watermark.relative = 0.6`, and `raft.wal_max_size_bytes = 134217728` into `rabbitmq.conf` with a 2Gi memory limit. Keep those settings if tuning overrides: RabbitMQ's 30 minute consumer timeout and 16 MiB message limit make long analyses redeliver and oversized requests fail at the broker instead of returning Exaflow's `request_too_large`, and less memory risks tripping the memory alarm or OOMKills under the quorum Raft WAL, 32 MiB messages, and 256 MiB queues.
+8. Optional hardening: the Secret's user is the broker administrator and is shared by Exaflow and the backend. For stricter isolation, create a backend user, put its URL in its own Secret, and point platform-backend at that Secret with `engines.exaflow.rabbitmq.existingSecret` and `engines.exaflow.rabbitmq.urlSecretKey`. Leave `existingSecret` empty to keep using `rabbitmq.existingSecret` and the `url` key. On RabbitMQ 4.3.1 and later, including 4.4.1, `queue.declare(passive=true)` needs at least one permission (`read`, `write`, or `configure`) on `exaflow.analysis.requests`. Grant the backend user `configure` `^platform-backend\.analysis\.replies$`, `write` `^(amq\.default|platform-backend\.analysis\.replies)$`, and `read` `^(platform-backend\.analysis\.replies|exaflow\.analysis\.requests)$`.
+
 ### Web and notebook stack deployment
 
 The deployment chart lives in this **mip** repository:
@@ -254,7 +277,7 @@ external authentication. On microk8s set `cluster.managed: false`; on managed
 clusters set it to `true` and choose the appropriate managed storage class.
 The MIP `cluster.managed` flag is independent of Exaflow's `managed_cluster`.
 
-Provision the referenced `mip-secret`, `keycloak-credentials`, TLS secret, and
+Provision the referenced `mip-secret`, `exaflow-rabbitmq`, `keycloak-credentials`, TLS secret, and
 `jupyterhub-crypt` through your secret-management process. Required secret keys
 are declared in the chart templates; keep private values out of the repository.
 For notebooks, preserve the crypt key across deployments and configure the

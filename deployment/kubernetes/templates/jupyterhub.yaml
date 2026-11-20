@@ -20,6 +20,9 @@
 {{- $useOperator := has $spawner (list "operator" "operator-api") -}}
 {{- $useOperatorApi := eq $spawner "operator-api" -}}
 {{- $operatorApi := default (dict) $jupyterHub.operatorApi -}}
+{{- if and $useOperatorApi (not (hasPrefix "https://" (toString $operatorApi.url))) -}}
+{{- fail "jupyterhub.operatorApi.url must start with https://" -}}
+{{- end -}}
 {{- if $jupyterHub.cryptKey }}
 ---
 # Without jupyterhub.cryptKey, create the secret out-of-band (see README) so the
@@ -56,6 +59,9 @@ kind: ServiceAccount
 metadata:
   name: jupyterhub
   namespace: {{ $namespace }}
+{{- if $useOperatorApi }}
+automountServiceAccountToken: false
+{{- end }}
 
 {{- /* operator-api: the hub has no Kubernetes permissions at all. */ -}}
 {{- if and (ne (toString $jupyterHub.rbac.create) "false") (not $useOperatorApi) }}

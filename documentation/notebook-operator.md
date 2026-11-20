@@ -256,7 +256,7 @@ or `Failed` (then DELETE and wait). It retries 429 (after `Retry-After`), 502,
 | `NOTEBOOK_API_CA_FILE` | `/var/run/secrets/mip-notebook-operator/ca.crt`: passed as `ca_certs`, loaded per connection |
 | `POD_NAMESPACE` | downward API |
 
-The hub pod sets `automountServiceAccountToken: false`.
+The `jupyterhub` ServiceAccount and the hub pod set `automountServiceAccountToken: false`.
 
 `MIP_TOKEN` is no longer put in the pod env (the `env` rule rejects it). The
 `mip` client fetches the first token from the hub `/api/platform-token`
@@ -284,7 +284,8 @@ Moving to `operator-api`, per federation:
    `mip-notebook-spawn-api` in the federation, ClusterRoleBinding to
    `mip-notebook-spawn-api-tokenreview` once.
 2. `mip` chart: `operator-api` mode renders the env above, the
-   projected token and CA volume, and `automountServiceAccountToken: false`.
+   projected token and CA volume, and `automountServiceAccountToken: false`
+   on the `jupyterhub` ServiceAccount and hub pod.
    Running servers survive: both modes use the same `Notebook` names.
 3. Drop the hub Role and RoleBinding. Once every federation has moved, drop
    the `jupyterhub` match from the Secret policy.

@@ -91,9 +91,11 @@ jupyterhub:
     # false: an admin applies the hub Role/RoleBinding (e.g. with
     # mip-infra-staging's out-of-band RBAC), so the GitOps tool needs no
     # RBAC write. The rules must match the spawner mode. Ignored with
-    # operator-api: no Role or RoleBinding is rendered.
+    # operator-api: no Role or RoleBinding is rendered (remove any
+    # hand-applied Role/RoleBinding after switching).
     create: true
-  # operator-api only. Needs a hub image with the operator-api spawner and the
+  # operator-api only. Needs hbpmip/mip-jupyterhub > 0.2.1 (0.3.0+ once
+  # released; 0.2.1 falls back to KubeSpawner without credentials) and the
   # spawn API deployed (mip-infra). The hub authenticates with a ServiceAccount
   # token bound to the spawn API's audience: the kubelet rotates it, and the
   # API server rejects it. caConfigMap holds the spawn API's CA under ca.crt

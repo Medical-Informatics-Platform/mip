@@ -19,12 +19,12 @@ logger = logging.getLogger("sca-orchestrator")
 
 # Configurable values
 # Directory scanned for lockfiles (uv.lock, go.mod/go.sum).
-SCA_TARGET = os.getenv("SCA_TARGET", ".")
+SCA_TARGET = os.getenv("SCA_TARGET", "operator")
 TRIVY_IGNOREFILE = os.getenv("TRIVY_IGNOREFILE", "ci/suppress_trivy.yaml")
 OSV_IGNOREFILE = os.getenv("OSV_IGNOREFILE", "ci/suppress_osv_scanner.toml")
-TRIVY_SARIF_OUTPUT = os.getenv("TRIVY_SARIF_OUTPUT", "trivy-mip-jupyter.sarif")
-OSV_SARIF_OUTPUT = os.getenv("OSV_SARIF_OUTPUT", "osv-scanner-mip-jupyter.sarif")
-SCA_MERGED_SARIF_OUTPUT = os.getenv("SCA_MERGED_SARIF_OUTPUT", "SCA-mip-jupyter-merged.sarif")
+TRIVY_SARIF_OUTPUT = os.getenv("TRIVY_SARIF_OUTPUT", "trivy-mip-notebook-operator.sarif")
+OSV_SARIF_OUTPUT = os.getenv("OSV_SARIF_OUTPUT", "osv-scanner-mip-notebook-operator.sarif")
+SCA_MERGED_SARIF_OUTPUT = os.getenv("SCA_MERGED_SARIF_OUTPUT", "SCA-mip-notebook-operator-merged.sarif")
 
 def run_trivy():
     cmd = [

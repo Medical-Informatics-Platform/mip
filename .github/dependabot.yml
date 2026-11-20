@@ -1,27 +1,20 @@
-# Keeps the operator's Go modules, digest-pinned base images and SHA-pinned actions current.
 version: 2
 updates:
-  - package-ecosystem: gomod
-    directory: /operator
+  # Keep SHA-pinned actions in workflows up to date (updates the pin and its
+  # version comment). Renovate handles Go modules, Docker base images, and CI
+  # scanner tools (see renovate.json), so the two bots don't overlap.
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
+      interval: "monthly"
+    # One combined PR for all action bumps instead of one PR per action
     groups:
-      # k8s.io and controller-runtime only build against matching versions.
-      kubernetes:
+      github-actions:
         patterns:
-          - k8s.io/*
-          - sigs.k8s.io/*
-  - package-ecosystem: docker
-    directories: ["/operator"]
-    schedule:
-      interval: weekly
+          - "*"
+    # 7-day cooldown, matching the scanners: never propose a release younger
+    # than 7 days, so yanked or compromised releases never reach a PR
     cooldown:
       default-days: 7
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
+    labels:
+      - "dependencies"

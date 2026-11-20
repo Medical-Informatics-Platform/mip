@@ -20,8 +20,8 @@ logging.basicConfig(
 logger = logging.getLogger("container-scan-orchestrator")
 
 # --- Configurable values
-IMAGE_NAME = os.getenv("IMAGE_NAME", "mip-jupyter:local")
-DOCKERFILE = os.getenv("DOCKERFILE", "docker/singleuser/Dockerfile")
+IMAGE_NAME = os.getenv("IMAGE_NAME", "mip-notebook-operator:local")
+DOCKERFILE = os.getenv("DOCKERFILE", "operator/Dockerfile")
 
 # --- SCA / CVE (Trivy + OSV) ---
 TRIVY_IGNOREFILE = os.getenv("TRIVY_IGNOREFILE", "ci/suppress_trivy.yaml")
@@ -43,7 +43,6 @@ def run_trivy():
         "trivy", "image",
         IMAGE_NAME,
         "--format", "sarif",
-        "--ignore-unfixed",
         "--ignorefile", TRIVY_IGNOREFILE,
         "--output", TRIVY_SCA_SARIF_OUTPUT
     ]
@@ -59,54 +58,8 @@ def run_osv_scanner():
     ]
     exit_code = subprocess.run(cmd).returncode
     if exit_code == 1:
-        exit_code = 0  # OSV Scanner returns 1 if vulnerabilities are found, but we want to continue the pipeline
-    if exit_code == 0:
-        exit_code = drop_osv_unfixed()
+        return 0  # OSV Scanner returns 1 if vulnerabilities are found, but we want to continue the pipeline
     return exit_code
-
-def drop_osv_unfixed():
-    # OSV-Scanner has no --ignore-unfixed; mirror Trivy's by dropping results
-    # whose advisory has no fixed version in the scanned package's own
-    # ecosystem (an Ubuntu Pro-only fix does not count).
-    json_cmd = [
-        "osv-scanner", "scan", "image", IMAGE_NAME,
-        "--config", OSV_IGNOREFILE, "--format", "json",
-    ]
-    scan = subprocess.run(json_cmd, capture_output=True, text=True)
-    # 0: nothing to filter. Not 1: no data, so keep every result rather than pass the gate.
-    if scan.returncode == 0:
-        return 0
-    if scan.returncode != 1:
-        logger.error(f"{RED}[!] osv-scanner JSON scan exit code {scan.returncode}: {scan.stderr}{RESET}")
-        return scan.returncode
-    fixed = set()
-    for result in json.loads(scan.stdout).get("results", []):
-        for pkg in result.get("packages", []):
-            name = pkg["package"]["name"]
-            ecosystem = pkg["package"].get("ecosystem")
-            for vuln in pkg.get("vulnerabilities", []):
-                for affected in vuln.get("affected", []):
-                    if affected.get("package", {}).get("name") != name:
-                        continue
-                    if affected["package"].get("ecosystem") != ecosystem:
-                        continue
-                    if any("fixed" in e for r in affected.get("ranges", []) for e in r.get("events", [])):
-                        for vid in [vuln["id"], *vuln.get("aliases", [])]:
-                            fixed.add((vid, name))
-    with open(OSV_SCA_SARIF_OUTPUT) as f:
-        sarif = json.load(f)
-    for run in sarif.get("runs", []):
-        # A message that does not parse keeps its result: unknown is not unfixed.
-        run["results"] = [r for r in run.get("results", [])
-                          if osv_package(r) is None or (r.get("ruleId"), osv_package(r)) in fixed]
-    with open(OSV_SCA_SARIF_OUTPUT, "w") as f:
-        json.dump(sarif, f)
-    return 0
-
-def osv_package(result):
-    # Message reads "Package 'name@version' is vulnerable to ...".
-    text = result.get("message", {}).get("text", "")
-    return text.split("'", 2)[1].rsplit("@", 1)[0] if text.count("'") >= 2 else None
 
 def handle_sca():
 
@@ -198,6 +151,10 @@ def handle_sast():
         "hadolint": run_hadolint,
         "opengrep": run_opengrep,
     }
+    sarif_files = {
+        "hadolint": HADOLINT_SAST_SARIF_OUTPUT,
+        "opengrep": OPENGREP_SAST_SARIF_OUTPUT,
+    }
 
     tool_status = {}
     exit_codes = {}
@@ -210,6 +167,10 @@ def handle_sast():
         elif exit_code == 1:
             tool_status[name] = "FAILED"
         else:
+            tool_status[name] = "ERROR"
+
+        if not os.path.exists(sarif_files[name]):
+            logger.error(f"{RED}[!] {name} SARIF missing: {sarif_files[name]}, tool failed to run{RESET}")
             tool_status[name] = "ERROR"
 
     logger.info(f"\n{BOLD}========== SAST PIPELINE SUMMARY =========={RESET}")

@@ -23,11 +23,13 @@ jobs:
         with:
           go-version-file: operator/go.mod
           cache-dependency-path: operator/go.sum
-      # Regenerates CRDs/RBAC/deepcopy first; a diff means they were not committed.
-      - name: Generated files are up to date
-        run: make manifests generate && git diff --exit-code
       - name: Controller and spawn API tests (envtest)
         run: make test
+      # make test regenerates manifests/deepcopy and runs go fmt; any change means it wasn't committed.
+      - name: Generated and formatted files are committed
+        run: |
+          git status --porcelain
+          test -z "$(git status --porcelain)"
 
   image:
     runs-on: ubuntu-latest

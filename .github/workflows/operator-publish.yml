@@ -103,6 +103,8 @@ jobs:
           images: |
             hbpmip/${{ matrix.image }}
             ${{ env.HARBOR_REGISTRY }}/medical-informatics-platform/${{ matrix.image }}
+          flavor: |
+            latest=${{ !github.event.release.prerelease }}
 
       # Shares the GHA layer cache with operator-ci.yml and operator-container-scan.yml.
       - name: Build ${{ matrix.image }} docker image

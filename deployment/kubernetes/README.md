@@ -85,7 +85,7 @@ Prior to deploying it (on a microk8s K8s cluster of one or more nodes), there ar
   Notebook examples are mounted only in operator mode on MIP infra clusters (mip-infra
   `common/examples`). KubeSpawner installs start without them.
 * `keycloak`: toggles the connection parameters to the external Keycloak instance (`enabled`, `host`, `protocol`, `realm`).
-* `rabbitmq`: optional single-node RabbitMQ 4.4.1 broker for Exaflow AMQP analyses. Off by default; create the `exaflow-rabbitmq` Secret out of band. The broker requests 512Mi and is limited to 2Gi.
+* `rabbitmq`: single-node RabbitMQ 4.4.1 broker for Exaflow AMQP analyses. Create the `exaflow-rabbitmq` Secret out of band before deploying. The broker requests 512Mi and is limited to 2Gi.
 
 Copy `values.yaml` to a new file (for example `my-values.yaml`) and edit it in-place. A few important knobs:
 

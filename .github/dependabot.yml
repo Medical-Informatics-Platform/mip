@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # Keep SHA-pinned actions in workflows up to date (updates the pin and its
+  # version comment). Renovate handles Go modules, Docker base images, and CI
+  # scanner tools (see renovate.json), so the two bots don't overlap.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    # One combined PR for all action bumps instead of one PR per action
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    # 7-day cooldown, matching the scanners: never propose a release younger
+    # than 7 days, so yanked or compromised releases never reach a PR
+    cooldown:
+      default-days: 7
+    labels:
+      - "dependencies"

@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  - pods
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - notebooks.mip.ebrains.eu
+  resources:
+  - notebookprofiles
+  - notebooks
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - notebooks.mip.ebrains.eu
+  resources:
+  - notebooks/status
+  verbs:
+  - get
+  - patch
+  - update

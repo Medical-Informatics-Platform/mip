@@ -115,7 +115,6 @@ jupyterhub:
 
 rabbitmq:
   # Single-node RabbitMQ 4.4.1 broker for Exaflow's AMQP analysis transport.
-  # 4.1 is past End of Community Support.
   # Created out of band; keys username, password, url (see README).
   existingSecret: exaflow-rabbitmq
   image:

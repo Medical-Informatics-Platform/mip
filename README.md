@@ -61,7 +61,7 @@ and algorithm execution through the platform backend. A welcome notebook,
 example analyses, and client documentation help researchers get started while
 patient-level records remain at the contributing sites.
 
-The new [mip-jupyter repository](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.2.1)
+The new [mip-jupyter repository](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.3.0)
 provides the notebook workspace, Python client, and Jupyter images. Example notebooks
 live in the [mip-examples repository](https://github.com/Medical-Informatics-Platform/mip-examples).
 
@@ -100,7 +100,7 @@ The algorithm documentation describes the available federated analyses and links
 to the underlying Exaflow analytic engine documentation.
 
 - [Available federated analysis algorithms](documentation/algorithms.md)
-- [Exaflow Analytic Engine](https://github.com/madgik/exaflow/tree/1.2.1)
+- [Exaflow Analytic Engine](https://github.com/madgik/exaflow/tree/1.3.0)
 
 # Jupyter Notebooks and Support Agent
 
@@ -109,7 +109,7 @@ pipelines, run federated algorithms, and document results alongside Python code.
 Cohort Scout can assist with notebook creation and explanation.
 
 - [Notebook getting-started guide](documentation/notebooks.md)
-- [MIP Jupyter workspace and Python client](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.2.1)
+- [MIP Jupyter workspace and Python client](https://github.com/Medical-Informatics-Platform/mip-jupyter/tree/0.3.0)
 - [MIP example notebooks](https://github.com/Medical-Informatics-Platform/mip-examples)
 
 # Data Management

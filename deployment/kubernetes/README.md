@@ -28,24 +28,20 @@ Now, with the Kubernetes (K8s) deployment, we have 2 main component packs, that 
 
 ### The analysis engine: Exaflow
 
-Deploy the [Exaflow 1.2.1 chart](https://github.com/madgik/exaflow/tree/1.2.1/kubernetes)
+Deploy the [Exaflow 1.3.0 chart](https://github.com/madgik/exaflow/tree/1.3.0/kubernetes)
 for the native federated pipeline:
 
 - Controller: accepts analyses and coordinates execution.
 - Local workers: load each site's datasets and execute local computations.
-- Global worker: provides the chart's global-worker service.
 - Aggregation server: combines partial vectors for algorithms and preprocessing
   steps that require aggregation. Keep `aggregation_server.enabled: true` for
   the full native algorithm portfolio.
 
-Flower and SMPC are optional features with separate setup requirements. The
-example below disables them and focuses on the native pipeline.
-
 ### The web and notebook stack
 
-- **platform-ui**: Experiment Studio, result visualizations, and notebook entry.
-- **platform-backend**: authenticated analysis API and experiment management.
-- **PostgreSQL**: stores platform experiments, folders, and other application state.
+- **platform-ui**: analysis studio, result visualizations, and notebook entry.
+- **platform-backend**: authenticated analysis API and study management.
+- **PostgreSQL**: stores platform analyses, studies, and other application state.
 - **JupyterHub and single-user JupyterLab**: notebook sessions and workspaces,
   using images from **mip-jupyter**. Hub state and user homes use separate PVCs.
 - **External Keycloak**: provides authentication; this chart wires an existing
@@ -124,7 +120,7 @@ Register a Keycloak redirect URI for the Hub OAuth client:
 
 For Kubernetes, make sure the images set in `jupyterhub.image` and `jupyterhub.singleuser.image` are pushed to the configured registry or loaded onto every node that may run the pods.
 
-`jupyterhub.spawner: operator-api` removes the hub's Kubernetes access entirely. The hub creates and deletes notebooks through the notebook operator's HTTPS spawn API (`jupyterhub.operatorApi.url`, which must start with `https://`) instead of the Kubernetes API, and the chart renders no Role or RoleBinding, whatever `jupyterhub.rbac.create` says — with `jupyterhub.rbac.create: false`, remove the hand-applied Role and RoleBinding after switching. Both the `jupyterhub` ServiceAccount and the hub pod set `automountServiceAccountToken: false`, so the hub pod gets no ServiceAccount token at the standard path; it authenticates with a projected token bound to the audience `mip-notebook-operator`, which the kubelet rotates and the API server rejects, and trusts the spawn API's CA from the `mip-notebooks-ca` ConfigMap (`jupyterhub.operatorApi.caConfigMap`), which mip-infra copies into each federation. The hub picks up a rotated token or CA without a restart. This mode needs `hbpmip/mip-jupyterhub` > `0.2.1` (`0.3.0+` once released; `0.2.1` does not know `operator-api` and falls back to KubeSpawner without credentials) and the spawn API deployed by mip-infra.
+`jupyterhub.spawner: operator-api` removes the hub's Kubernetes access entirely. The hub creates and deletes notebooks through the notebook operator's HTTPS spawn API (`jupyterhub.operatorApi.url`, which must start with `https://`) instead of the Kubernetes API, and the chart renders no Role or RoleBinding, whatever `jupyterhub.rbac.create` says — with `jupyterhub.rbac.create: false`, remove the hand-applied Role and RoleBinding after switching. Both the `jupyterhub` ServiceAccount and the hub pod set `automountServiceAccountToken: false`, so the hub pod gets no ServiceAccount token at the standard path; it authenticates with a projected token bound to the audience `mip-notebook-operator`, which the kubelet rotates and the API server rejects, and trusts the spawn API's CA from the `mip-notebooks-ca` ConfigMap (`jupyterhub.operatorApi.caConfigMap`), which mip-infra copies into each federation. The hub picks up a rotated token or CA without a restart. This mode needs `hbpmip/mip-jupyterhub` `0.3.0` or later (older images do not know `operator-api` and fall back to KubeSpawner without credentials) and the spawn API deployed by mip-infra.
 
 The reachability diagram from the legacy profiles is still valid as a reference for deciding the correct public URL:
 ![MIP Reachability Scheme](../docs/MIP_Configuration.png)
@@ -187,6 +183,16 @@ Upgrade notes:
 - Users without a role on the platform client can no longer open notebooks, and users without a shared experiment's datasets can no longer read it.
 - The chart does not change image tags. `KEYCLOAK_REQUIRED_AUDIENCE` and `KEYCLOAK_ORIGIN` do nothing until you deploy images that read them.
 
+### Upgrading from 9.2.x
+
+1. Back up the platform database. platform-backend 11.0.0 runs Flyway V5 and V6 on startup, and V6 renames tables and columns.
+2. Create the `exaflow-rabbitmq` Secret (see *Analyses through RabbitMQ*).
+3. Update the Exaflow values: rename `localnodes` to `worker_count`, and remove global-worker, Flower and SMPC settings.
+4. Upgrade Exaflow 1.3.0, platform-backend 11.0.0, platform-ui 3.0.0 and mip-jupyter 0.3.0 together.
+5. Rename `EXPERIMENT_RUN_DRAFT_TTL` to `ANALYSIS_RUN_DRAFT_TTL` if you set it.
+6. Give every notebook user a role on the platform's Keycloak client. Users without one get a 403.
+7. External API clients must move from `/experiments` to `/analyses`.
+
 ### Microk8s installation
 On a running Ubuntu (we recommend 22.04) distribution, install microk8s (we **HIGHLY** recommend to **NOT** install Docker on your Kubernetes cluster!):
 ```
@@ -224,7 +230,7 @@ For a "federated" deployment, you may want to add nodes to your cluster. "microk
 Clone the matching engine release and create an environment-specific values file:
 
 ```bash
-sudo git clone --branch 1.2.1 https://github.com/madgik/exaflow /opt/exaflow
+sudo git clone --branch 1.3.0 https://github.com/madgik/exaflow /opt/exaflow
 sudo chown -R mipadmin:mipadmin /opt/exaflow
 cp /opt/exaflow/kubernetes/values.yaml /opt/exaflow/kubernetes/my-values.yaml
 ```
@@ -235,25 +241,22 @@ namespace, federation name, paths, and worker count for your installation:
 ```yaml
 namespace: <target-namespace>
 managed_cluster: false
-localnodes: 1
+worker_count: 1
 exaflow_images:
   repository: madgik
-  version: 1.2.1
+  version: 1.3.0
 federation: <MIP_INSTANCE_OR_FEDERATION_NAME>
 aggregation_server:
   enabled: true
-flower:
-  enabled: false
-smpc:
-  enabled: false
+rabbitmq:
+  existing_secret: exaflow-rabbitmq
 storage:
   hostPath:
     db:
       localworker: /data/<MIP_INSTANCE_OR_FEDERATION_NAME>/localworker
-      globalworker: /data/<MIP_INSTANCE_OR_FEDERATION_NAME>/globalworker
 ```
 
-`localnodes` counts local workers. The chart requires one local worker per
+`worker_count` counts workers. The chart requires one worker per
 eligible host through pod anti-affinity; a single-host installation uses `1`
 and labels the same node as both master and worker. The current templates use
 `managed_cluster` to select hostPath versus CSV PVC storage; `storage.type`
@@ -281,7 +284,7 @@ backend's `engines.exaflow.url` must reach `exaflow-controller-service`; the
 existing short service name works when both charts share a namespace. For
 separate namespaces use the controller's fully qualified service DNS name.
 
-See the [Exaflow chart](https://github.com/madgik/exaflow/tree/1.2.1/kubernetes)
+See the [Exaflow chart](https://github.com/madgik/exaflow/tree/1.3.0/kubernetes)
 for the full values and templates. The old `credentials_location`,
 `db.storage_location`, `db.csvs_location`, and `controller.cleanup_file_folder`
 settings are not used by this chart.
@@ -290,7 +293,7 @@ settings are not used by this chart.
 
 MIP submits analyses to Exaflow over RabbitMQ (specifications and metadata still use `engines.exaflow.url`). The chart always deploys the in-namespace RabbitMQ 4.4.1 broker.
 
-1. Use an Exaflow build that includes [madgik/exaflow#673](https://github.com/madgik/exaflow/pull/673) and [madgik/exaflow#681](https://github.com/madgik/exaflow/pull/681). Upgrade the controller, workers, and aggregation server together. Use a platform-backend build that includes the RabbitMQ transport. Run one Exaflow controller replica and one backend replica.
+1. Use Exaflow 1.3.0 or later and platform-backend 11.0.0 or later. Upgrade the controller, workers, and aggregation server together. Run one Exaflow controller replica and one backend replica.
 2. Create the `exaflow-rabbitmq` Secret before deploying. Use a URL-safe password (`openssl rand -hex 24`): the same password is embedded in `url`, which Exaflow and the backend read, while the broker reads `username` and `password`. Keep `%2F` as the trailing vhost path so both the Java and Python AMQP clients select the default `/` vhost. The host is the in-namespace Service:
 
 ```bash
@@ -302,7 +305,7 @@ kubectl create secret generic exaflow-rabbitmq -n <namespace> \
 ```
 
 3. Deploy this chart so the RabbitMQ broker starts.
-4. In the Exaflow values set `rabbitmq.enabled: true`. The chart defaults `existing_secret: exaflow-rabbitmq` and `url_secret_key: url` already match this Secret. Deploy Exaflow. `GET /healthcheck/rabbitmq` on the controller must return 200 with `consuming: true`.
+4. The Exaflow chart requires the broker Secret. Its defaults `existing_secret: exaflow-rabbitmq` and `url_secret_key: url` already match this Secret. Deploy Exaflow. `GET /healthcheck/rabbitmq` on the controller must return 200 with `consuming: true`.
 5. Delivery is at least once, so an analysis can run twice after a controller crash. Broker persistence and backups are your responsibility. The StatefulSet retains its PVC when the broker is deleted or scaled down; keep that PVC until dead-letter messages are inspected.
 6. `RABBITMQ_DEFAULT_USER` and `RABBITMQ_DEFAULT_PASS` apply only on first boot with an empty volume. Rotate by running `kubectl exec -n <namespace> exaflow-rabbitmq-0 -- rabbitmqctl change_password <user> <new-password>` first, then update the Secret (`password` and `url`), then restart the Exaflow controller and platform-backend.
 7. This chart's broker is RabbitMQ 4.4.1 and writes `consumer_timeout = 7200000`, `max_message_size = 33554432`, `vm_memory_high_watermark.relative = 0.6`, and `raft.wal_max_size_bytes = 134217728` into `rabbitmq.conf` with a 2Gi memory limit. Keep those settings if tuning overrides: RabbitMQ's 30 minute consumer timeout and 16 MiB message limit make long analyses redeliver and oversized requests fail at the broker instead of returning Exaflow's `request_too_large`, and less memory risks tripping the memory alarm or OOMKills under the quorum Raft WAL, 32 MiB messages, and 256 MiB queues.
@@ -318,7 +321,7 @@ sudo chown -R mipadmin:mipadmin /opt/mip
 cp /opt/mip/deployment/kubernetes/values.yaml /opt/mip/deployment/kubernetes/my-values.yaml
 ```
 
-Use the MIP 9.2.1 release checkout when available. Edit `my-values.yaml` for your
+Use the MIP 10.0.0 release checkout when available. Edit `my-values.yaml` for your
 installation, including image versions, ingress settings, storage classes, and
 external authentication. On microk8s set `cluster.managed: false`; on managed
 clusters set it to `true` and choose the appropriate managed storage class.

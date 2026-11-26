@@ -1,7 +1,7 @@
-# Components in MIP 10.0.0
+# Components in MIP 9.3.0
 
 MIP combines the following independently released repositories. These component
-versions make up the MIP 10.0.0 release.
+versions make up the MIP 9.3.0 release.
 
 | Repository | Version | Role and major changes |
 | --- | --- | --- |

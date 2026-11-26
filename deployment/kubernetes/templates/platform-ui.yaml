@@ -29,6 +29,11 @@ spec:
       labels:
         app: platform-ui
     spec:
+      # nginx runs as UID 101 and listens on port 80.
+      securityContext:
+        sysctls:
+          - name: net.ipv4.ip_unprivileged_port_start
+            value: "0"
 {{- if eq (toString .Values.cluster.managed) "false" }}
       nodeSelector:
         master: "true"

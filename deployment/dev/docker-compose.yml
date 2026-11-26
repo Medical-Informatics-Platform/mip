@@ -40,24 +40,14 @@ services:
       DEPLOYMENT_TYPE: LOCAL
       WORKER_LANDSCAPE_AGGREGATOR_UPDATE_INTERVAL: 30
       WORKER_TASKS_TIMEOUT: 30
-      FLOWER_ENABLED: false
-      FLOWER_EXECUTION_TIMEOUT: 30
-      FLOWER_SERVER_PORT: 8080
-      LOCALWORKERS_CONFIG_FILE: /opt/config/localworkers_config.json
-      LOCALWORKERS_DNS: ""
-      LOCALWORKERS_PORT: ""
+      MAX_CONCURRENT_EXPERIMENTS: 32
+      WORKERS_CONFIG_FILE: /opt/config/workers_config.json
+      WORKERS_DNS: ""
+      WORKERS_PORT: ""
       AGGREGATION_SERVER_ENABLED: true
       AGGREGATION_SERVER_DNS: 172.28.0.13:50051
       RABBITMQ_ENABLED: "true"
       RABBITMQ_URL: amqp://mip:mip@rabbitmq:5672/%2F
-      SMPC_ENABLED: false
-      SMPC_OPTIONAL: false
-      SMPC_COORDINATOR_ADDRESS: ""
-      SMPC_GET_RESULT_INTERVAL: 10
-      SMPC_GET_RESULT_MAX_RETRIES: 100
-      DP_ENABLED: false
-      DP_SENSITIVITY: ""
-      DP_PRIVACY_BUDGET: ""
     depends_on:
       exaflow_aggregation_server:
         condition: service_started
@@ -70,42 +60,10 @@ services:
       default:
         ipv4_address: 172.28.0.10
 
-  exaflow_global_worker:
-    image: madgik/exaflow_worker:${EXAFLOW}
-    environment:
-      WORKER_IDENTIFIER: globalworker
-      WORKER_ROLE: GLOBALWORKER
-      FEDERATION: dementia
-      LOG_LEVEL: INFO
-      FRAMEWORK_LOG_LEVEL: INFO
-      DUCKDB_PATH: /tmp/globalworker.duckdb
-      DATA_PATH: /opt/data
-      CONTROLLER_IP: 172.28.0.10
-      CONTROLLER_PORT: 5000
-      WORKER_TASKS_TIMEOUT: 30
-      PROTECT_LOCAL_DATA: false
-      GRPC_IP: 172.28.0.11
-      GRPC_PORT: 5670
-      AGGREGATION_SERVER_ENABLED: true
-      AGGREGATION_SERVER_DNS: 172.28.0.13:50051
-      SMPC_ENABLED: false
-      SMPC_OPTIONAL: false
-      SMPC_CLIENT_ID: ""
-      SMPC_CLIENT_ADDRESS: ""
-      SMPC_COORDINATOR_ADDRESS: ""
-    depends_on:
-      - exaflow_controller
-      - exaflow_aggregation_server
-    restart: unless-stopped
-    networks:
-      default:
-        ipv4_address: 172.28.0.11
-
   exaflow_local_worker1:
     image: madgik/exaflow_worker:${EXAFLOW}
     environment:
       WORKER_IDENTIFIER: localworker1
-      WORKER_ROLE: LOCALWORKER
       FEDERATION: dementia
       LOG_LEVEL: INFO
       FRAMEWORK_LOG_LEVEL: INFO
@@ -117,13 +75,9 @@ services:
       PROTECT_LOCAL_DATA: false
       GRPC_IP: 172.28.0.12
       GRPC_PORT: 5671
+      GRPC_MAX_WORKERS: 36
       AGGREGATION_SERVER_ENABLED: true
       AGGREGATION_SERVER_DNS: 172.28.0.13:50051
-      SMPC_ENABLED: false
-      SMPC_OPTIONAL: false
-      SMPC_CLIENT_ID: ""
-      SMPC_CLIENT_ADDRESS: ""
-      SMPC_COORDINATOR_ADDRESS: ""
     depends_on:
       - exaflow_controller
       - exaflow_aggregation_server
@@ -206,6 +160,9 @@ services:
       PLATFORM_BACKEND_SERVER: platform-backend:8080
       PLATFORM_BACKEND_CONTEXT: services
       NOTEBOOK_ENABLED: 0
+      # nginx resolves this at start; the dev stack has no JupyterHub.
+      JUPYTER_SERVER: 127.0.0.1:80
+      JUPYTER_CONTEXT: notebook
       MIP_VERSION: "${MIP}"
       KEYCLOAK_ORIGIN: "${KEYCLOAK_ORIGIN:-}"
     depends_on:

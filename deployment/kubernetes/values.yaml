@@ -19,11 +19,11 @@ engines:
       replyTimeout: ""
       publishTimeout: ""
 mip:
-  version: 9.2.1
+  version: 9.3.0
 platform-ui:
   image:
     repository: hbpmip/platform-ui
-    tag: 2.1.1
+    tag: 3.0.0
   ingress:
     enabled: true
     className: haproxy-public
@@ -41,7 +41,7 @@ platform-ui:
 platform-backend:
   image:
     repository: hbpmip/platform-backend
-    tag: 10.2.0
+    tag: 11.0.0
   config:
     logLevel: INFO
     logLevelFramework: INFO
@@ -81,7 +81,7 @@ jupyterhub:
   cryptKey: ""
   image:
     repository: hbpmip/mip-jupyterhub
-    tag: 0.2.1
+    tag: 0.3.0
   resources:
     requests:
       cpu: 100m
@@ -104,9 +104,9 @@ jupyterhub:
     # operator-api: no Role or RoleBinding is rendered (remove any
     # hand-applied Role/RoleBinding after switching).
     create: true
-  # operator-api only. Needs hbpmip/mip-jupyterhub > 0.2.1 (0.3.0+ once
-  # released; 0.2.1 falls back to KubeSpawner without credentials) and the
-  # spawn API deployed (mip-infra). The hub authenticates with a ServiceAccount
+  # operator-api only. Needs hbpmip/mip-jupyterhub 0.3.0 or later (older
+  # images fall back to KubeSpawner without credentials) and the spawn API
+  # deployed (mip-infra). The hub authenticates with a ServiceAccount
   # token bound to the spawn API's audience: the kubelet rotates it, and the
   # API server rejects it. caConfigMap holds the spawn API's CA under ca.crt
   # (mip-infra copies it into each federation).
@@ -129,7 +129,7 @@ jupyterhub:
   singleuser:
     image:
       repository: hbpmip/mip-jupyter
-      tag: 0.2.1
+      tag: 0.3.0
     storageCapacity: 2Gi
     resources:
       requests:

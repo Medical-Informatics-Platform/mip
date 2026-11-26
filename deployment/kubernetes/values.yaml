@@ -81,7 +81,7 @@ jupyterhub:
   cryptKey: ""
   image:
     repository: hbpmip/mip-jupyterhub
-    tag: 0.2.1
+    tag: 0.3.0
   resources:
     requests:
       cpu: 100m

@@ -23,7 +23,7 @@ mip:
 platform-ui:
   image:
     repository: hbpmip/platform-ui
-    tag: 2.1.1
+    tag: 3.0.0
   ingress:
     enabled: true
     className: haproxy-public
